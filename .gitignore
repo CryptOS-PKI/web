@@ -1,0 +1,17 @@
+# Node / Vite output
+node_modules/
+dist/
+.cache/
+*.log
+*.tsbuildinfo
+
+# Test output
+coverage/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
