@@ -1,0 +1,33 @@
+name: Bug report
+description: Report a defect in the Fleet Manager web frontend
+title: "fix: "
+labels: ["bug"]
+assignees: ["Bugs5382"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: The actual behavior, with any console errors or a screenshot.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Minimal steps — route, clicks, or state that triggers it.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: web version/commit, browser + version, OS, and the manager backend version it is talking to.
+    validations:
+      required: false
