@@ -15,7 +15,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+
+import { createContext, type ReactNode, useContext, useEffect, useState } from "react";
 
 // Auth-gate stub for browser-side mTLS. In production the operator authenticates
 // with a smart-card / YubiKey-backed client certificate presented by the browser
@@ -24,7 +25,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 // after a short delay to exercise the gate. Wiring the real client-cert handshake
 // (and reading the verified subject the manager reports back) is a later concern.
 
-export type AuthStatus = "presenting" | "authenticated";
+export type AuthStatus = "authenticated" | "presenting";
 
 export interface Operator {
   /** Common name from the operator's client certificate subject. */
@@ -34,8 +35,8 @@ export interface Operator {
 }
 
 interface AuthState {
+  operator: null | Operator;
   status: AuthStatus;
-  operator: Operator | null;
 }
 
 const AuthContext = createContext<AuthState | undefined>(undefined);
@@ -46,12 +47,12 @@ const DEV_OPERATOR: Operator = {
 };
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [state, setState] = useState<AuthState>({ status: "presenting", operator: null });
+  const [state, setState] = useState<AuthState>({ operator: null, status: "presenting" });
 
   useEffect(() => {
     // Simulate the handshake resolving to a verified operator identity.
     const timer = setTimeout(() => {
-      setState({ status: "authenticated", operator: DEV_OPERATOR });
+      setState({ operator: DEV_OPERATOR, status: "authenticated" });
     }, 600);
     return () => clearTimeout(timer);
   }, []);

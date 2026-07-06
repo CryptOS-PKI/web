@@ -15,20 +15,22 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-import { Badge } from "@/components/ui/badge";
+
 import type { IdentityState } from "@/lib/mock";
+
+import { Badge } from "@/components/ui/badge";
 
 // Maps a node's identity state to a semantic badge. Revoked is included for the
 // full state palette even though the mock fixtures do not currently produce it.
-type Presentation = { label: string; variant: "success" | "warning" | "destructive" };
+type Presentation = { label: string; variant: "destructive" | "success" | "warning" };
 
-const presentation: Record<IdentityState | "REVOKED", Presentation> = {
-  ESTABLISHED: { label: "Verified", variant: "success" },
+const presentation: Record<"REVOKED" | IdentityState, Presentation> = {
   AWAITING_CERT: { label: "Pending", variant: "warning" },
+  ESTABLISHED: { label: "Verified", variant: "success" },
   REVOKED: { label: "Revoked", variant: "destructive" },
 };
 
-export const IdentityBadge = ({ state }: { state: IdentityState | "REVOKED" }) => {
+export const IdentityBadge = ({ state }: { state: "REVOKED" | IdentityState }) => {
   const { label, variant } = presentation[state];
   return <Badge variant={variant}>{label}</Badge>;
 };

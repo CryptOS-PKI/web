@@ -15,33 +15,32 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-import { NavLink } from "react-router-dom";
-import { ClipboardList, Network, Server } from "lucide-react";
+
 import type { LucideIcon } from "lucide-react";
+
+import { ClipboardList, Network, Server } from "lucide-react";
+import { NavLink } from "react-router-dom";
 
 import { cn } from "@/lib/utils";
 
 interface NavItem {
-  to: string;
-  label: string;
-  icon: LucideIcon;
   end?: boolean;
+  icon: LucideIcon;
+  label: string;
+  to: string;
 }
 
 const navItems: NavItem[] = [
-  { to: "/", label: "Fleet", icon: Network, end: true },
-  { to: "/nodes", label: "Nodes", icon: Server },
-  { to: "/audit", label: "Audit", icon: ClipboardList },
+  { end: true, icon: Network, label: "Fleet", to: "/" },
+  { icon: Server, label: "Nodes", to: "/nodes" },
+  { icon: ClipboardList, label: "Audit", to: "/audit" },
 ];
 
 export const Sidebar = () => {
   return (
     <nav className="flex w-48 shrink-0 flex-col gap-1 border-r bg-card p-3">
-      {navItems.map(({ to, label, icon: Icon, end }) => (
+      {navItems.map(({ end, icon: Icon, label, to }) => (
         <NavLink
-          key={to}
-          to={to}
-          end={end}
           className={({ isActive }) =>
             cn(
               "flex items-center gap-2 rounded-md px-3 py-2 font-mono text-sm transition-colors",
@@ -50,6 +49,9 @@ export const Sidebar = () => {
                 : "text-muted-foreground hover:bg-accent hover:text-foreground",
             )
           }
+          end={end}
+          key={to}
+          to={to}
         >
           <Icon className="size-4" />
           {label}
