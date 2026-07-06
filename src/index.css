@@ -102,3 +102,61 @@ limitations under the License.
     font-family: var(--font-mono);
   }
 }
+
+@layer components {
+  /* Fleet topology feeder edges. A faint rail carries a colored feeder that
+     flows toward the child in the child's identity-state color. `.hit` is a fat
+     transparent stroke that widens the hover target for the thin visible line.
+     Keyframe speeds were tuned with Shane 2026-07-06 — do not change them. */
+  .rail {
+    stroke: hsl(var(--border));
+    stroke-width: 2;
+    fill: none;
+  }
+  .feed {
+    fill: none;
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-dasharray: 5 13;
+  }
+  .feed.feed-established {
+    stroke: hsl(var(--success));
+    animation: flow 3s linear infinite;
+  }
+  .feed.feed-awaiting {
+    stroke: hsl(var(--warning));
+    animation: flow 3s linear infinite;
+  }
+  .feed.feed-revoked {
+    stroke: hsl(var(--destructive));
+    stroke-dasharray: none;
+    stroke-width: 2.5;
+    animation: flash 1.7s ease-in-out infinite;
+  }
+  @keyframes flow {
+    to {
+      stroke-dashoffset: -180;
+    }
+  }
+  @keyframes flash {
+    0%,
+    100% {
+      opacity: 0.18;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .feed {
+      animation: none;
+      opacity: 0.85;
+    }
+  }
+  .hit {
+    stroke: transparent;
+    stroke-width: 18;
+    fill: none;
+    cursor: help;
+  }
+}
