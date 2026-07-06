@@ -58,19 +58,24 @@ const tipTone: Record<IdentityState, string> = {
 };
 
 // Fixed layout for the individually-drawn nodes, matching the reference geometry
-// (viewBox 0 0 660 440). Radius scales a little with issued count. Wide fan-outs
+// (viewBox 0 0 720 520). Radius scales a little with issued count. Wide fan-outs
 // are not laid out here — they collapse into a group box (see groupLayout).
 type Layout = { r: number; x: number; y: number };
 const layout: Record<string, Layout> = {
-  "acme-intermediate-01": { r: 34, x: 350, y: 110 },
-  "acme-intermediate-02": { r: 26, x: 350, y: 300 },
-  "acme-root-01": { r: 30, x: 110, y: 200 },
+  "acme-intermediate-01": { r: 32, x: 340, y: 120 },
+  "acme-intermediate-02": { r: 26, x: 340, y: 300 },
+  "acme-intermediate-03": { r: 26, x: 340, y: 450 },
+  "acme-issuing-k01": { r: 16, x: 540, y: 410 },
+  "acme-issuing-k02": { r: 16, x: 578, y: 450 },
+  "acme-issuing-k03": { r: 16, x: 540, y: 490 },
+  "acme-root-01": { r: 30, x: 110, y: 250 },
 };
 
 // Where a parent's collapsed group box hangs, keyed by the parent node name.
 type GroupBox = { anchorY: number; width: number; x: number; y: number };
 const groupLayout: Record<string, GroupBox> = {
-  "acme-intermediate-01": { anchorY: 110, width: 196, x: 452, y: 40 },
+  "acme-intermediate-01": { anchorY: 120, width: 210, x: 452, y: 40 },
+  "acme-intermediate-02": { anchorY: 300, width: 210, x: 452, y: 236 },
 };
 
 // Cubic bezier from a parent to a child, bending vertically toward the child so
@@ -244,7 +249,7 @@ export const FleetTopology = ({
 
   return (
     <div className="relative">
-      <svg aria-label="CA fleet topology graph" className="w-full" role="img" viewBox="0 0 660 440">
+      <svg aria-label="CA fleet topology graph" className="w-full" role="img" viewBox="0 0 720 520">
         {circleEdges.map(({ child, parent }) => {
           const from = layout[parent.name];
           const to = layout[child.name];

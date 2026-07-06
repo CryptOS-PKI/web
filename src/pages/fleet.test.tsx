@@ -31,9 +31,11 @@ const renderFleet = () => {
   );
 };
 
-// The CNs of the individually-drawn nodes (roots + intermediates); wide fan-outs
-// collapse into a group box and are not drawn as circles.
-const circleNodes = mockNodes.filter((n) => n.role !== "issuing");
+// Nodes drawn as individual circles: roots, intermediates, and the small G3
+// issuing fan-out (<= groupThreshold). Wide fan-outs (G1, G2) collapse to boxes.
+const circleNodes = mockNodes.filter(
+  (n) => n.role !== "issuing" || n.parentCn === "ACME Intermediate CA G3",
+);
 
 describe("FleetPage", () => {
   it("renders the topology graph with every individually-drawn CA subject CN", () => {
@@ -51,8 +53,9 @@ describe("FleetPage", () => {
     expect(members.length).toBeGreaterThan(groupThreshold);
 
     // The group header shows title, subtitle, and the member count; the member
-    // CNs are hidden until the group is expanded.
-    expect(screen.getByText("Issuing CAs")).toBeInTheDocument();
+    // CNs are hidden until the group is expanded. Both G1 and G2 collapse to
+    // group boxes, so "Issuing CAs" appears twice — use getAllByText.
+    expect(screen.getAllByText("Issuing CAs").length).toBeGreaterThan(0);
     expect(screen.getByText(`under ${parentCn}`)).toBeInTheDocument();
     expect(screen.getByText(String(members.length))).toBeInTheDocument();
     expect(screen.queryByText(members[0].cn)).not.toBeInTheDocument();
@@ -62,7 +65,9 @@ describe("FleetPage", () => {
     renderFleet();
     const members = childrenOf("ACME Intermediate CA G1");
 
-    fireEvent.click(screen.getByRole("button", { name: /Issuing CAs/i }));
+    // Two group buttons exist (G1 and G2); target the G1 one by its subtitle.
+    const g1Subtitle = screen.getByText("under ACME Intermediate CA G1");
+    fireEvent.click(g1Subtitle.closest("button")!);
     for (const m of members) {
       expect(screen.getByText(m.cn)).toBeInTheDocument();
     }
