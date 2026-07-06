@@ -1,0 +1,28 @@
+# GoLic configuration for this repo.
+# golic v0.3.0's embedded rules cover .js/.go/etc. but NOT the TypeScript/ESM
+# source extensions this project ships. mergeRules keeps the embedded rules and
+# adds C-style comment rules for .ts/.tsx/.mts/.mjs/.cjs so `task license`
+# actually injects and verifies the Apache 2.0 header on every source file.
+golic:
+  mergeRules: true
+  rules:
+    .ts:
+      prefix: /*
+      suffix: "*/"
+      under: []
+    .tsx:
+      prefix: /*
+      suffix: "*/"
+      under: []
+    .mts:
+      prefix: /*
+      suffix: "*/"
+      under: []
+    .mjs:
+      prefix: /*
+      suffix: "*/"
+      under: []
+    .cjs:
+      prefix: /*
+      suffix: "*/"
+      under: []
