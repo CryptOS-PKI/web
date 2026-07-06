@@ -17,12 +17,17 @@ limitations under the License.
 */
 import { useState } from "react";
 
+import { RootMark } from "@/components/root-mark";
 import { cn } from "@/lib/utils";
-import { mockNodes, trustEdges, type IdentityState, type Node } from "@/lib/mock";
-
-// Shield glyph used inside the root node. Rendered from an escape so no literal
-// emoji lands in source (matches the wordmark convention).
-const SHIELD = "\u{1F6E1}\u{FE0F}";
+import {
+  aggregateState,
+  childrenOf,
+  groupThreshold,
+  mockNodes,
+  summarize,
+  type IdentityState,
+  type Node,
+} from "@/lib/mock";
 
 // State -> ring stroke color and feeder class. Colors resolve to the theme's
 // semantic CSS variables so the graph follows light/dark and any palette edit.
@@ -38,6 +43,12 @@ const feedClass: Record<IdentityState, string> = {
   REVOKED: "feed-revoked",
 };
 
+const dotColor: Record<IdentityState, string> = {
+  ESTABLISHED: "hsl(var(--success))",
+  AWAITING_CERT: "hsl(var(--warning))",
+  REVOKED: "hsl(var(--destructive))",
+};
+
 // One-word tooltip accent that reuses the same semantic mapping.
 const tipTone: Record<IdentityState, string> = {
   ESTABLISHED: "text-success",
@@ -45,14 +56,20 @@ const tipTone: Record<IdentityState, string> = {
   REVOKED: "text-destructive",
 };
 
-// Fixed layout for the four locked nodes, matching the reference geometry
-// (viewBox 0 0 640 400). Radius scales a little with issued count.
+// Fixed layout for the individually-drawn nodes, matching the reference geometry
+// (viewBox 0 0 660 440). Radius scales a little with issued count. Wide fan-outs
+// are not laid out here — they collapse into a group box (see groupLayout).
 type Layout = { x: number; y: number; r: number };
 const layout: Record<string, Layout> = {
   "acme-root-01": { x: 110, y: 200, r: 30 },
   "acme-intermediate-01": { x: 350, y: 110, r: 34 },
   "acme-intermediate-02": { x: 350, y: 300, r: 26 },
-  "acme-issuing-01": { x: 550, y: 110, r: 22 },
+};
+
+// Where a parent's collapsed group box hangs, keyed by the parent node name.
+type GroupBox = { x: number; y: number; width: number; anchorY: number };
+const groupLayout: Record<string, GroupBox> = {
+  "acme-intermediate-01": { x: 452, y: 40, width: 196, anchorY: 110 },
 };
 
 // Cubic bezier from a parent to a child, bending vertically toward the child so
@@ -60,6 +77,14 @@ const layout: Record<string, Layout> = {
 function edgePath(from: Layout, to: Layout): string {
   const midX = from.x + (to.x - from.x) * 0.5;
   return `M${from.x},${from.y} C${midX},${from.y} ${to.x - 70},${to.y} ${to.x},${to.y}`;
+}
+
+// Feeder from a parent circle to the left edge of a collapsed group box.
+function groupEdgePath(from: Layout, box: GroupBox): string {
+  const toX = box.x;
+  const toY = box.anchorY;
+  const midX = from.x + (toX - from.x) * 0.5;
+  return `M${from.x},${from.y} C${midX},${from.y} ${toX - 40},${toY} ${toX},${toY}`;
 }
 
 // Prose describing a trust edge, colored by the child's state. Copy tracks the
@@ -75,6 +100,19 @@ function edgeDescription(parent: Node, child: Node): string {
   }
 }
 
+// Prose describing a collapsed group's feeder, colored by the aggregate state.
+function groupEdgeDescription(parent: Node, members: Node[], state: IdentityState): string {
+  const s = summarize(members);
+  switch (state) {
+    case "ESTABLISHED":
+      return `${members.length} issuing CAs under ${parent.cn}, all ESTABLISHED. Every branch verifies to the parent.`;
+    case "AWAITING_CERT":
+      return `${members.length} issuing CAs under ${parent.cn}: ${s.established} established, ${s.pending} awaiting a signed chain. Amber until all branches establish.`;
+    case "REVOKED":
+      return `${members.length} issuing CAs under ${parent.cn}: ${s.revoked} revoked. Do not trust the revoked branch(es); ${s.established} remain established.`;
+  }
+}
+
 interface Tip {
   x: number;
   y: number;
@@ -84,9 +122,88 @@ interface Tip {
 }
 
 function nodeGlyph(node: Node): { text: string; fontSize?: number } {
-  if (node.role === "root") return { text: SHIELD };
   if (node.identityState === "AWAITING_CERT") return { text: "?", fontSize: 15 };
   return { text: String(node.issued) };
+}
+
+// A collapsed group box for a wide fan-out. Header toggles a scrollable member
+// list; clicking a member selects it so the shared detail panel updates. Colors
+// come from the theme tokens.
+function GroupBox({
+  parent,
+  members,
+  box,
+  selected,
+  onSelect,
+}: {
+  parent: Node;
+  members: Node[];
+  box: GroupBox;
+  selected: string;
+  onSelect: (name: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const s = summarize(members);
+  const height = expanded ? 220 : 74;
+  // Rendered from escapes so no literal glyph lands in source (down/right
+  // triangles + a check mark), matching the no-literal-glyph convention.
+  const chevron = expanded ? "\u25BE" : "\u25B8";
+  const check = "\u2713";
+
+  return (
+    <foreignObject x={box.x} y={box.y} width={box.width} height={height} overflow="visible">
+      <div className="grp">
+        <button
+          type="button"
+          className="grp-hd"
+          aria-expanded={expanded}
+          onClick={() => setExpanded((v) => !v)}
+        >
+          <span className="w-2.5 font-mono text-xs text-muted-foreground" aria-hidden="true">
+            {chevron}
+          </span>
+          <span className="min-w-0">
+            <span className="block text-[13.5px] font-semibold">Issuing CAs</span>
+            <span className="block font-mono text-[11px] text-muted-foreground">
+              under {parent.cn}
+            </span>
+          </span>
+          <span className="ml-auto flex shrink-0 items-center gap-2 font-mono text-[11px]">
+            <span className="font-semibold text-foreground">{members.length}</span>
+            <span className="text-success">
+              {s.established}
+              {check}
+            </span>
+            {s.pending > 0 ? <span className="text-warning">{s.pending}p</span> : null}
+            {s.revoked > 0 ? <span className="text-destructive">{s.revoked}r</span> : null}
+          </span>
+        </button>
+        {expanded ? (
+          <div className="grp-list">
+            {members.map((m) => (
+              <button
+                type="button"
+                key={m.name}
+                className={cn("grp-mem", m.name === selected && "sel")}
+                aria-pressed={m.name === selected}
+                onClick={() => onSelect(m.name)}
+              >
+                <span
+                  className="h-[7px] w-[7px] shrink-0 rounded-full"
+                  style={{ background: dotColor[m.identityState] }}
+                  aria-hidden="true"
+                />
+                <span className="truncate font-mono text-xs">{m.cn}</span>
+                <span className="ml-auto shrink-0 font-mono text-[11px] text-muted-foreground">
+                  {m.issued}
+                </span>
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </foreignObject>
+  );
 }
 
 export function FleetTopology({
@@ -97,12 +214,31 @@ export function FleetTopology({
   onSelect: (name: string) => void;
 }) {
   const [tip, setTip] = useState<Tip | null>(null);
-  const edges = trustEdges();
+
+  // Split children into wide fan-outs (collapse to a group) vs. small fan-outs
+  // (draw as circles, as before). A parent gets a group box only when it both
+  // exceeds the threshold and has a group layout slot.
+  const groups = Object.keys(groupLayout)
+    .map((parentName) => {
+      const parent = mockNodes.find((n) => n.name === parentName);
+      if (!parent) return null;
+      const members = childrenOf(parent.cn);
+      if (members.length <= groupThreshold) return null;
+      return { parent, members, box: groupLayout[parentName] };
+    })
+    .filter((g): g is NonNullable<typeof g> => g !== null);
+
+  // Circle edges: parent -> child for children that are NOT part of a collapsed
+  // group and that have a layout slot.
+  const circleEdges = mockNodes
+    .filter((child) => child.parentCn && layout[child.name])
+    .map((child) => ({ parent: mockNodes.find((n) => n.cn === child.parentCn), child }))
+    .filter((e): e is { parent: Node; child: Node } => Boolean(e.parent));
 
   return (
     <div className="relative">
-      <svg viewBox="0 0 640 400" role="img" aria-label="CA fleet topology graph" className="w-full">
-        {edges.map(({ parent, child }) => {
+      <svg viewBox="0 0 660 440" role="img" aria-label="CA fleet topology graph" className="w-full">
+        {circleEdges.map(({ parent, child }) => {
           const from = layout[parent.name];
           const to = layout[child.name];
           if (!from || !to) return null;
@@ -129,12 +265,40 @@ export function FleetTopology({
           );
         })}
 
+        {groups.map(({ parent, members, box }) => {
+          const from = layout[parent.name];
+          if (!from) return null;
+          const state = aggregateState(members);
+          const d = groupEdgePath(from, box);
+          return (
+            <g key={`${parent.name}->group`}>
+              <path className="rail" d={d} />
+              <path className={cn("feed", feedClass[state])} d={d} />
+              <path
+                className="hit"
+                d={d}
+                onMouseMove={(e) =>
+                  setTip({
+                    x: e.clientX,
+                    y: e.clientY,
+                    title: `${parent.cn} → Issuing CAs (${members.length})`,
+                    info: groupEdgeDescription(parent, members, state),
+                    state,
+                  })
+                }
+                onMouseLeave={() => setTip(null)}
+              />
+            </g>
+          );
+        })}
+
         {mockNodes.map((node) => {
           const pos = layout[node.name];
           if (!pos) return null;
+          const isRoot = node.role === "root";
           const glyph = nodeGlyph(node);
           const isSel = node.name === selected;
-          const showIssuedCount = node.role !== "root" && node.identityState === "ESTABLISHED";
+          const showIssuedCount = !isRoot && node.identityState === "ESTABLISHED";
           return (
             <g
               key={node.name}
@@ -166,14 +330,18 @@ export function FleetTopology({
               >
                 {node.role}
               </text>
-              <text
-                y={showIssuedCount ? -2 : 4}
-                textAnchor="middle"
-                className="fill-foreground font-mono font-semibold"
-                style={{ fontSize: glyph.fontSize ?? 12 }}
-              >
-                {glyph.text}
-              </text>
+              {isRoot ? (
+                <RootMark />
+              ) : (
+                <text
+                  y={showIssuedCount ? -2 : 4}
+                  textAnchor="middle"
+                  className="fill-foreground font-mono font-semibold"
+                  style={{ fontSize: glyph.fontSize ?? 12 }}
+                >
+                  {glyph.text}
+                </text>
+              )}
               {showIssuedCount ? (
                 <text
                   y={12}
@@ -195,6 +363,17 @@ export function FleetTopology({
             </g>
           );
         })}
+
+        {groups.map(({ parent, members, box }) => (
+          <GroupBox
+            key={`groupbox-${parent.name}`}
+            parent={parent}
+            members={members}
+            box={box}
+            selected={selected}
+            onSelect={onSelect}
+          />
+        ))}
       </svg>
 
       {tip ? (
