@@ -209,4 +209,37 @@ limitations under the License.
   .grp-mem.sel {
     background: hsl(var(--muted));
   }
+
+  /* Focus view: pinned-root rail, off-path chips, and the redraw morph. */
+  .pin-rail {
+    fill: hsl(var(--secondary) / 0.35);
+    stroke: hsl(var(--primary) / 0.5);
+    stroke-width: 1;
+    stroke-dasharray: 3 3;
+  }
+  .node-g {
+    transition: transform 300ms ease;
+  }
+  .chip {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    width: 100%;
+    padding: 0.3rem 0.55rem;
+    border: 1px solid hsl(var(--border));
+    border-radius: 0.5rem;
+    background: hsl(var(--card));
+    font-family: var(--font-mono, ui-monospace, monospace);
+    font-size: 11px;
+    color: hsl(var(--muted-foreground));
+    cursor: pointer;
+  }
+  .chip:hover {
+    background: hsl(var(--secondary));
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .node-g {
+      transition: none;
+    }
+  }
 }

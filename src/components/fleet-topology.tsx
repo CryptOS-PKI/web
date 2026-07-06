@@ -28,6 +28,7 @@ import {
   type Node,
   summarize,
 } from "@/lib/mock";
+import { computeFocusLayout, type Downstream, type Placed } from "@/lib/topology-layout";
 import { cn } from "@/lib/utils";
 
 // State -> ring stroke color and feeder class. Colors resolve to the theme's
@@ -159,8 +160,8 @@ const GroupBox = ({
   const height = expanded ? 220 : 74;
   // Rendered from escapes so no literal glyph lands in source (down/right
   // triangles + a check mark), matching the no-literal-glyph convention.
-  const chevron = expanded ? "\u25BE" : "\u25B8";
-  const check = "\u2713";
+  const chevron = expanded ? "▾" : "▸";
+  const check = "✓";
 
   return (
     <foreignObject height={height} overflow="visible" width={box.width} x={box.x} y={box.y}>
@@ -218,14 +219,224 @@ const GroupBox = ({
   );
 };
 
-export const FleetTopology = ({
-  onSelect,
+const FocusNode = ({
+  onFocus,
+  placed,
   selected,
 }: {
-  onSelect: (name: string) => void;
+  onFocus: (name: string) => void;
+  placed: Placed;
+  selected: string;
+}) => {
+  const isRoot = placed.role === "root";
+  const isSel = placed.name === selected;
+  return (
+    <g
+      aria-label={`${placed.cn} (${placed.state})`}
+      aria-pressed={isSel}
+      className={cn("node-g cursor-pointer", isSel && "sel")}
+      onClick={() => onFocus(placed.name)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onFocus(placed.name);
+        }
+      }}
+      role="button"
+      tabIndex={0}
+      transform={`translate(${placed.x},${placed.y})`}
+    >
+      <circle
+        fill={isSel ? "hsl(var(--secondary))" : "hsl(var(--card))"}
+        r={placed.r}
+        stroke={stateStroke[placed.state]}
+        strokeWidth={isSel ? 4 : 3}
+      />
+      {isRoot ? <RootMark /> : null}
+      <text
+        className="fill-foreground font-mono font-semibold"
+        style={{ fontSize: 12 }}
+        textAnchor="middle"
+        y={placed.r + 18}
+      >
+        {placed.cn}
+      </text>
+    </g>
+  );
+};
+
+const DownstreamLayer = ({
+  downstream,
+  focus,
+  onFocus,
+  selected,
+}: {
+  downstream: Downstream;
+  focus: Placed;
+  onFocus: (name: string) => void;
+  selected: string;
+}) => {
+  if (downstream.kind === "leaves") {
+    // Representational issued-cert fan: leaves are counts, not nodes.
+    const dots = Math.min(downstream.count, 6);
+    return (
+      <g>
+        <path className="rail" d={edgePath(focus, { r: 0, x: downstream.x, y: downstream.y })} />
+        {Array.from({ length: dots }, (_, i) => (
+          <circle
+            cx={downstream.x + 10 + (i % 3) * 16}
+            cy={downstream.y - 20 + Math.floor(i / 3) * 24}
+            fill="hsl(var(--success) / 0.5)"
+            key={i}
+            r={4}
+          />
+        ))}
+        <text
+          className="fill-muted-foreground font-mono"
+          style={{ fontSize: 11 }}
+          textAnchor="start"
+          x={downstream.x}
+          y={downstream.y + 40}
+        >
+          {downstream.count} issued
+        </text>
+      </g>
+    );
+  }
+  if (downstream.kind === "group") {
+    const d = groupEdgePath(focus, downstream.box);
+    return (
+      <g>
+        <path className="rail" d={d} />
+        <path className={cn("feed", feedClass[aggregateState(downstream.members)])} d={d} />
+        <GroupBox
+          box={downstream.box}
+          members={downstream.members}
+          onSelect={onFocus}
+          parent={downstream.parent}
+          selected={selected}
+        />
+      </g>
+    );
+  }
+  return (
+    <g>
+      {downstream.nodes.map((n) => {
+        const d = edgePath(focus, n);
+        return (
+          <g key={`ds-${n.name}`}>
+            <path className="rail" d={d} />
+            <path className={cn("feed", feedClass[n.state])} d={d} />
+            <FocusNode onFocus={onFocus} placed={n} selected={selected} />
+          </g>
+        );
+      })}
+    </g>
+  );
+};
+
+const FocusView = ({
+  focus,
+  onFocus,
+  selected,
+  tip,
+}: {
+  focus: string;
+  onFocus: (name: string) => void;
+  selected: string;
+  tip: null | Tip;
+}) => {
+  const l = computeFocusLayout(focus, mockNodes);
+
+  return (
+    <div className="relative">
+      <svg aria-label="CA fleet topology graph" className="w-full" role="img" viewBox="0 0 720 520">
+        {/* pinned-root rail behind the leftmost spine node */}
+        <rect
+          className="pin-rail"
+          height={200}
+          rx={10}
+          width={130}
+          x={l.spine[0].x - 60}
+          y={l.spine[0].y - 100}
+        />
+
+        {/* spine feeders between consecutive nodes */}
+        {l.spine.slice(1).map((to, i) => {
+          const from = l.spine[i];
+          const d = edgePath(from, to);
+          return (
+            <g key={`spine-${from.name}-${to.name}`}>
+              <path className="rail" d={d} />
+              <path className={cn("feed", feedClass[to.state])} d={d} />
+            </g>
+          );
+        })}
+
+        {/* downstream edge + payload */}
+        <DownstreamLayer
+          downstream={l.downstream}
+          focus={l.focus}
+          onFocus={onFocus}
+          selected={selected}
+        />
+
+        {/* spine + focus nodes */}
+        {l.spine.map((p) => (
+          <FocusNode key={p.name} onFocus={onFocus} placed={p} selected={selected} />
+        ))}
+
+        {/* off-path chips, laid left->right below the spine */}
+        {l.chips.map((chip, i) => (
+          <foreignObject
+            height={30}
+            key={chip.key}
+            width={190}
+            x={150 + (i % 3) * 196}
+            y={410 + Math.floor(i / 3) * 36}
+          >
+            <button className="chip" onClick={() => onFocus(chip.refocus)} type="button">
+              <span
+                aria-hidden="true"
+                className="h-[7px] w-[7px] shrink-0 rounded-full"
+                style={{ background: dotColor[chip.state] }}
+              />
+              <span className="truncate">{chip.label}</span>
+            </button>
+          </foreignObject>
+        ))}
+      </svg>
+
+      {tip ? (
+        <div
+          className="pointer-events-none fixed z-30 max-w-[280px] rounded-lg border bg-secondary px-3 py-2 shadow-xl"
+          role="tooltip"
+          style={{ left: Math.min(tip.x + 14, window.innerWidth - 300), top: tip.y + 14 }}
+        >
+          <div className={cn("font-mono text-[11px] font-bold tracking-wide", tipTone[tip.state])}>
+            {tip.title}
+          </div>
+          <div className="mt-1 text-xs leading-snug text-muted-foreground">{tip.info}</div>
+        </div>
+      ) : null}
+    </div>
+  );
+};
+
+export const FleetTopology = ({
+  focus,
+  onFocus,
+  selected,
+}: {
+  focus: null | string;
+  onFocus: (name: string) => void;
   selected: string;
 }) => {
   const [tip, setTip] = useState<null | Tip>(null);
+
+  if (focus) {
+    return <FocusView focus={focus} onFocus={onFocus} selected={selected} tip={tip} />;
+  }
 
   // Split children into wide fan-outs (collapse to a group) vs. small fan-outs
   // (draw as circles, as before). A parent gets a group box only when it both
@@ -317,11 +528,11 @@ export const FleetTopology = ({
               aria-pressed={isSel}
               className={cn("cursor-pointer", isSel && "sel")}
               key={node.name}
-              onClick={() => onSelect(node.name)}
+              onClick={() => onFocus(node.name)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
-                  onSelect(node.name);
+                  onFocus(node.name);
                 }
               }}
               role="button"
@@ -381,7 +592,7 @@ export const FleetTopology = ({
             box={box}
             key={`groupbox-${parent.name}`}
             members={members}
-            onSelect={onSelect}
+            onSelect={onFocus}
             parent={parent}
             selected={selected}
           />
