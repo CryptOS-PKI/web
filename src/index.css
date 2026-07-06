@@ -159,4 +159,54 @@ limitations under the License.
     fill: none;
     cursor: help;
   }
+
+  /* Collapsed group box (foreignObject) that stands in for a wide fan-out of
+     child CAs. Header toggles a scrollable member list. Colors reuse the theme
+     tokens so the box tracks light/dark and palette edits. */
+  .grp {
+    border: 1px solid hsl(var(--border));
+    border-radius: 12px;
+    background: hsl(var(--secondary));
+    overflow: hidden;
+  }
+  .grp-hd {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.625rem 0.75rem;
+    text-align: left;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: inherit;
+  }
+  .grp-hd:hover {
+    background: hsl(var(--muted));
+  }
+  .grp-list {
+    max-height: 150px;
+    overflow: auto;
+    border-top: 1px solid hsl(var(--border));
+  }
+  .grp-mem {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.4375rem 0.75rem;
+    text-align: left;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid hsl(var(--border));
+    cursor: pointer;
+    color: inherit;
+  }
+  .grp-mem:last-child {
+    border-bottom: none;
+  }
+  .grp-mem:hover,
+  .grp-mem.sel {
+    background: hsl(var(--muted));
+  }
 }
