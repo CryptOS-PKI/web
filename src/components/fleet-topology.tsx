@@ -160,8 +160,8 @@ const GroupBox = ({
   const height = expanded ? 220 : 74;
   // Rendered from escapes so no literal glyph lands in source (down/right
   // triangles + a check mark), matching the no-literal-glyph convention.
-  const chevron = expanded ? "▾" : "▸";
-  const check = "✓";
+  const chevron = expanded ? "\u25BE" : "\u25B8";
+  const check = "\u2713";
 
   return (
     <foreignObject height={height} overflow="visible" width={box.width} x={box.x} y={box.y}>
