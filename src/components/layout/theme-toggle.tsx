@@ -15,6 +15,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 import { Moon, Sun } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -26,11 +27,11 @@ export const ThemeToggle = () => {
 
   return (
     <Button
-      variant="ghost"
-      size="icon"
-      onClick={toggleTheme}
       aria-label={nextLabel}
+      onClick={toggleTheme}
+      size="icon"
       title={nextLabel}
+      variant="ghost"
     >
       {theme === "dark" ? <Sun /> : <Moon />}
     </Button>

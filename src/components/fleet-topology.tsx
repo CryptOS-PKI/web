@@ -15,61 +15,62 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 import { useState } from "react";
 
 import { RootMark } from "@/components/root-mark";
-import { cn } from "@/lib/utils";
 import {
   aggregateState,
   childrenOf,
   groupThreshold,
-  mockNodes,
-  summarize,
   type IdentityState,
+  mockNodes,
   type Node,
+  summarize,
 } from "@/lib/mock";
+import { cn } from "@/lib/utils";
 
 // State -> ring stroke color and feeder class. Colors resolve to the theme's
 // semantic CSS variables so the graph follows light/dark and any palette edit.
 const stateStroke: Record<IdentityState, string> = {
-  ESTABLISHED: "hsl(var(--success))",
   AWAITING_CERT: "hsl(var(--warning))",
+  ESTABLISHED: "hsl(var(--success))",
   REVOKED: "hsl(var(--destructive))",
 };
 
 const feedClass: Record<IdentityState, string> = {
-  ESTABLISHED: "feed-established",
   AWAITING_CERT: "feed-awaiting",
+  ESTABLISHED: "feed-established",
   REVOKED: "feed-revoked",
 };
 
 const dotColor: Record<IdentityState, string> = {
-  ESTABLISHED: "hsl(var(--success))",
   AWAITING_CERT: "hsl(var(--warning))",
+  ESTABLISHED: "hsl(var(--success))",
   REVOKED: "hsl(var(--destructive))",
 };
 
 // One-word tooltip accent that reuses the same semantic mapping.
 const tipTone: Record<IdentityState, string> = {
-  ESTABLISHED: "text-success",
   AWAITING_CERT: "text-warning",
+  ESTABLISHED: "text-success",
   REVOKED: "text-destructive",
 };
 
 // Fixed layout for the individually-drawn nodes, matching the reference geometry
 // (viewBox 0 0 660 440). Radius scales a little with issued count. Wide fan-outs
 // are not laid out here — they collapse into a group box (see groupLayout).
-type Layout = { x: number; y: number; r: number };
+type Layout = { r: number; x: number; y: number };
 const layout: Record<string, Layout> = {
-  "acme-root-01": { x: 110, y: 200, r: 30 },
-  "acme-intermediate-01": { x: 350, y: 110, r: 34 },
-  "acme-intermediate-02": { x: 350, y: 300, r: 26 },
+  "acme-intermediate-01": { r: 34, x: 350, y: 110 },
+  "acme-intermediate-02": { r: 26, x: 350, y: 300 },
+  "acme-root-01": { r: 30, x: 110, y: 200 },
 };
 
 // Where a parent's collapsed group box hangs, keyed by the parent node name.
-type GroupBox = { x: number; y: number; width: number; anchorY: number };
+type GroupBox = { anchorY: number; width: number; x: number; y: number };
 const groupLayout: Record<string, GroupBox> = {
-  "acme-intermediate-01": { x: 452, y: 40, width: 196, anchorY: 110 },
+  "acme-intermediate-01": { anchorY: 110, width: 196, x: 452, y: 40 },
 };
 
 // Cubic bezier from a parent to a child, bending vertically toward the child so
@@ -91,12 +92,15 @@ const groupEdgePath = (from: Layout, box: GroupBox): string => {
 // reference tooltips.
 const edgeDescription = (parent: Node, child: Node): string => {
   switch (child.identityState) {
-    case "ESTABLISHED":
-      return `Signed under the sub-CA profile (CA:TRUE, pathLen 1). Identity ESTABLISHED; ${child.issued} certs issued downstream. Chain verifies to ${parent.cn}.`;
-    case "AWAITING_CERT":
+    case "AWAITING_CERT": {
       return "AWAITING_CERT. The issuing node generated its key + CSR; the parent-signed chain has not been submitted yet. No certs issued.";
-    case "REVOKED":
+    }
+    case "ESTABLISHED": {
+      return `Signed under the sub-CA profile (CA:TRUE, pathLen 1). Identity ESTABLISHED; ${child.issued} certs issued downstream. Chain verifies to ${parent.cn}.`;
+    }
+    case "REVOKED": {
       return `REVOKED. The sub-CA certificate was revoked (all ${child.revoked} downstream certs revoked) and the Fleet Manager peer cert was pulled. Flow halted — do not trust this branch.`;
+    }
   }
 };
 
@@ -104,25 +108,28 @@ const edgeDescription = (parent: Node, child: Node): string => {
 const groupEdgeDescription = (parent: Node, members: Node[], state: IdentityState): string => {
   const s = summarize(members);
   switch (state) {
-    case "ESTABLISHED":
-      return `${members.length} issuing CAs under ${parent.cn}, all ESTABLISHED. Every branch verifies to the parent.`;
-    case "AWAITING_CERT":
+    case "AWAITING_CERT": {
       return `${members.length} issuing CAs under ${parent.cn}: ${s.established} established, ${s.pending} awaiting a signed chain. Amber until all branches establish.`;
-    case "REVOKED":
+    }
+    case "ESTABLISHED": {
+      return `${members.length} issuing CAs under ${parent.cn}, all ESTABLISHED. Every branch verifies to the parent.`;
+    }
+    case "REVOKED": {
       return `${members.length} issuing CAs under ${parent.cn}: ${s.revoked} revoked. Do not trust the revoked branch(es); ${s.established} remain established.`;
+    }
   }
 };
 
 interface Tip {
-  x: number;
-  y: number;
-  title: string;
   info: string;
   state: IdentityState;
+  title: string;
+  x: number;
+  y: number;
 }
 
-const nodeGlyph = (node: Node): { text: string; fontSize?: number } => {
-  if (node.identityState === "AWAITING_CERT") return { text: "?", fontSize: 15 };
+const nodeGlyph = (node: Node): { fontSize?: number; text: string } => {
+  if (node.identityState === "AWAITING_CERT") return { fontSize: 15, text: "?" };
   return { text: String(node.issued) };
 };
 
@@ -130,17 +137,17 @@ const nodeGlyph = (node: Node): { text: string; fontSize?: number } => {
 // list; clicking a member selects it so the shared detail panel updates. Colors
 // come from the theme tokens.
 const GroupBox = ({
-  parent,
-  members,
   box,
-  selected,
+  members,
   onSelect,
+  parent,
+  selected,
 }: {
-  parent: Node;
-  members: Node[];
   box: GroupBox;
-  selected: string;
+  members: Node[];
   onSelect: (name: string) => void;
+  parent: Node;
+  selected: string;
 }) => {
   const [expanded, setExpanded] = useState(false);
   const s = summarize(members);
@@ -151,15 +158,15 @@ const GroupBox = ({
   const check = "\u2713";
 
   return (
-    <foreignObject x={box.x} y={box.y} width={box.width} height={height} overflow="visible">
+    <foreignObject height={height} overflow="visible" width={box.width} x={box.x} y={box.y}>
       <div className="grp">
         <button
-          type="button"
-          className="grp-hd"
           aria-expanded={expanded}
+          className="grp-hd"
           onClick={() => setExpanded((v) => !v)}
+          type="button"
         >
-          <span className="w-2.5 font-mono text-xs text-muted-foreground" aria-hidden="true">
+          <span aria-hidden="true" className="w-2.5 font-mono text-xs text-muted-foreground">
             {chevron}
           </span>
           <span className="min-w-0">
@@ -182,16 +189,16 @@ const GroupBox = ({
           <div className="grp-list">
             {members.map((m) => (
               <button
-                type="button"
-                key={m.name}
-                className={cn("grp-mem", m.name === selected && "sel")}
                 aria-pressed={m.name === selected}
+                className={cn("grp-mem", m.name === selected && "sel")}
+                key={m.name}
                 onClick={() => onSelect(m.name)}
+                type="button"
               >
                 <span
+                  aria-hidden="true"
                   className="h-[7px] w-[7px] shrink-0 rounded-full"
                   style={{ background: dotColor[m.identityState] }}
-                  aria-hidden="true"
                 />
                 <span className="truncate font-mono text-xs">{m.cn}</span>
                 <span className="ml-auto shrink-0 font-mono text-[11px] text-muted-foreground">
@@ -207,13 +214,13 @@ const GroupBox = ({
 };
 
 export const FleetTopology = ({
-  selected,
   onSelect,
+  selected,
 }: {
-  selected: string;
   onSelect: (name: string) => void;
+  selected: string;
 }) => {
-  const [tip, setTip] = useState<Tip | null>(null);
+  const [tip, setTip] = useState<null | Tip>(null);
 
   // Split children into wide fan-outs (collapse to a group) vs. small fan-outs
   // (draw as circles, as before). A parent gets a group box only when it both
@@ -224,7 +231,7 @@ export const FleetTopology = ({
       if (!parent) return null;
       const members = childrenOf(parent.cn);
       if (members.length <= groupThreshold) return null;
-      return { parent, members, box: groupLayout[parentName] };
+      return { box: groupLayout[parentName], members, parent };
     })
     .filter((g): g is NonNullable<typeof g> => g !== null);
 
@@ -232,13 +239,13 @@ export const FleetTopology = ({
   // group and that have a layout slot.
   const circleEdges = mockNodes
     .filter((child) => child.parentCn && layout[child.name])
-    .map((child) => ({ parent: mockNodes.find((n) => n.cn === child.parentCn), child }))
-    .filter((e): e is { parent: Node; child: Node } => Boolean(e.parent));
+    .map((child) => ({ child, parent: mockNodes.find((n) => n.cn === child.parentCn) }))
+    .filter((e): e is { child: Node; parent: Node } => Boolean(e.parent));
 
   return (
     <div className="relative">
-      <svg viewBox="0 0 660 440" role="img" aria-label="CA fleet topology graph" className="w-full">
-        {circleEdges.map(({ parent, child }) => {
+      <svg aria-label="CA fleet topology graph" className="w-full" role="img" viewBox="0 0 660 440">
+        {circleEdges.map(({ child, parent }) => {
           const from = layout[parent.name];
           const to = layout[child.name];
           if (!from || !to) return null;
@@ -250,22 +257,22 @@ export const FleetTopology = ({
               <path
                 className="hit"
                 d={d}
+                onMouseLeave={() => setTip(null)}
                 onMouseMove={(e) =>
                   setTip({
-                    x: e.clientX,
-                    y: e.clientY,
-                    title: `${parent.cn} → ${child.cn}`,
                     info: edgeDescription(parent, child),
                     state: child.identityState,
+                    title: `${parent.cn} → ${child.cn}`,
+                    x: e.clientX,
+                    y: e.clientY,
                   })
                 }
-                onMouseLeave={() => setTip(null)}
               />
             </g>
           );
         })}
 
-        {groups.map(({ parent, members, box }) => {
+        {groups.map(({ box, members, parent }) => {
           const from = layout[parent.name];
           if (!from) return null;
           const state = aggregateState(members);
@@ -277,16 +284,16 @@ export const FleetTopology = ({
               <path
                 className="hit"
                 d={d}
+                onMouseLeave={() => setTip(null)}
                 onMouseMove={(e) =>
                   setTip({
-                    x: e.clientX,
-                    y: e.clientY,
-                    title: `${parent.cn} → Issuing CAs (${members.length})`,
                     info: groupEdgeDescription(parent, members, state),
                     state,
+                    title: `${parent.cn} → Issuing CAs (${members.length})`,
+                    x: e.clientX,
+                    y: e.clientY,
                   })
                 }
-                onMouseLeave={() => setTip(null)}
               />
             </g>
           );
@@ -301,13 +308,10 @@ export const FleetTopology = ({
           const showIssuedCount = !isRoot && node.identityState === "ESTABLISHED";
           return (
             <g
-              key={node.name}
-              className={cn("cursor-pointer", isSel && "sel")}
-              transform={`translate(${pos.x},${pos.y})`}
-              role="button"
-              tabIndex={0}
               aria-label={`${node.cn} (${node.identityState})`}
               aria-pressed={isSel}
+              className={cn("cursor-pointer", isSel && "sel")}
+              key={node.name}
               onClick={() => onSelect(node.name)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
@@ -315,18 +319,21 @@ export const FleetTopology = ({
                   onSelect(node.name);
                 }
               }}
+              role="button"
+              tabIndex={0}
+              transform={`translate(${pos.x},${pos.y})`}
             >
               <circle
-                r={pos.r}
                 fill={isSel ? "hsl(var(--secondary))" : "hsl(var(--card))"}
+                r={pos.r}
                 stroke={stateStroke[node.identityState]}
                 strokeWidth={3}
               />
               <text
-                y={-pos.r - 10}
-                textAnchor="middle"
                 className="fill-muted-foreground font-mono uppercase"
                 style={{ fontSize: 9.5, letterSpacing: "0.1em" }}
+                textAnchor="middle"
+                y={-pos.r - 10}
               >
                 {node.role}
               </text>
@@ -334,29 +341,29 @@ export const FleetTopology = ({
                 <RootMark />
               ) : (
                 <text
-                  y={showIssuedCount ? -2 : 4}
-                  textAnchor="middle"
                   className="fill-foreground font-mono font-semibold"
                   style={{ fontSize: glyph.fontSize ?? 12 }}
+                  textAnchor="middle"
+                  y={showIssuedCount ? -2 : 4}
                 >
                   {glyph.text}
                 </text>
               )}
               {showIssuedCount ? (
                 <text
-                  y={12}
-                  textAnchor="middle"
                   className="fill-muted-foreground font-mono"
                   style={{ fontSize: 11 }}
+                  textAnchor="middle"
+                  y={12}
                 >
                   issued
                 </text>
               ) : null}
               <text
-                y={pos.r + 18}
-                textAnchor="middle"
                 className="fill-foreground font-mono font-semibold"
                 style={{ fontSize: 12 }}
+                textAnchor="middle"
+                y={pos.r + 18}
               >
                 {node.cn}
               </text>
@@ -364,14 +371,14 @@ export const FleetTopology = ({
           );
         })}
 
-        {groups.map(({ parent, members, box }) => (
+        {groups.map(({ box, members, parent }) => (
           <GroupBox
-            key={`groupbox-${parent.name}`}
-            parent={parent}
-            members={members}
             box={box}
-            selected={selected}
+            key={`groupbox-${parent.name}`}
+            members={members}
             onSelect={onSelect}
+            parent={parent}
+            selected={selected}
           />
         ))}
       </svg>
@@ -379,11 +386,11 @@ export const FleetTopology = ({
       {tip ? (
         <div
           className="pointer-events-none fixed z-30 max-w-[280px] rounded-lg border bg-secondary px-3 py-2 shadow-xl"
+          role="tooltip"
           style={{
             left: Math.min(tip.x + 14, window.innerWidth - 300),
             top: tip.y + 14,
           }}
-          role="tooltip"
         >
           <div className={cn("font-mono text-[11px] font-bold tracking-wide", tipTone[tip.state])}>
             {tip.title}

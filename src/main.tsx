@@ -15,6 +15,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
@@ -24,7 +25,7 @@ import { AuthProvider } from "@/context/auth";
 import { ThemeProvider } from "@/context/theme";
 import "@/index.css";
 
-const container = document.getElementById("root");
+const container = document.querySelector("#root");
 if (!container) {
   throw new Error("Root element #root not found");
 }

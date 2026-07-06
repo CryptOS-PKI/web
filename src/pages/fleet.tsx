@@ -15,13 +15,14 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 import { useState } from "react";
 
 import { FleetTopology } from "@/components/fleet-topology";
 import { NodeDetailPanel } from "@/components/node-detail-panel";
 import { getNode, mockNodes } from "@/lib/mock";
 
-const PanelHeader = ({ label, children }: { label: string; children?: React.ReactNode }) => {
+const PanelHeader = ({ children, label }: { children?: React.ReactNode; label: string }) => {
   return (
     <div className="flex items-center justify-between border-b px-4 py-3">
       <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
@@ -76,7 +77,7 @@ export const FleetPage = () => {
           <PanelHeader label="Topology">
             <Legend />
           </PanelHeader>
-          <FleetTopology selected={selected} onSelect={setSelected} />
+          <FleetTopology onSelect={setSelected} selected={selected} />
         </div>
 
         <div className="w-full rounded-xl border bg-card">
