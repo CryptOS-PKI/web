@@ -17,20 +17,9 @@ limitations under the License.
 */
 import { Link, useParams } from "react-router-dom";
 
-import { IdentityBadge } from "@/components/identity-badge";
+import { NodeDetailPanel } from "@/components/node-detail-panel";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { getNode, roleLabels } from "@/lib/mock";
-
-function DetailRow({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className="flex justify-between gap-4 font-mono text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="text-right">{value}</span>
-    </div>
-  );
-}
 
 export function NodeDetailPage() {
   const { name } = useParams<{ name: string }>();
@@ -51,27 +40,14 @@ export function NodeDetailPage() {
   }
 
   return (
-    <section className="max-w-2xl space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <div className="space-y-1">
-          <h1 className="font-mono text-2xl font-bold tracking-tight">{node.name}</h1>
-          <p className="font-mono text-sm text-muted-foreground">{roleLabels[node.role]}</p>
-        </div>
-        <IdentityBadge state={node.identityState} />
+    <section className="space-y-5">
+      <div className="space-y-1">
+        <h1 className="text-2xl font-bold tracking-tight">{node.name}</h1>
+        <p className="font-mono text-sm text-muted-foreground">{roleLabels[node.role]}</p>
       </div>
-      <Card>
-        <CardHeader>
-          <CardTitle className="font-mono text-base">Identity</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <DetailRow label="address" value={node.address} />
-          <DetailRow label="issuer" value={node.issuer} />
-          <DetailRow label="tpm" value={node.tpm} />
-          <Separator />
-          <DetailRow label="issued" value={node.issued} />
-          <DetailRow label="revoked" value={node.revoked} />
-        </CardContent>
-      </Card>
+      <div className="w-full rounded-xl border bg-card">
+        <NodeDetailPanel node={node} />
+      </div>
       <Button variant="outline" asChild>
         <Link to="/nodes">Back to nodes</Link>
       </Button>

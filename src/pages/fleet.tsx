@@ -15,22 +15,74 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-import { NodeCard } from "@/components/node-card";
-import { mockNodes } from "@/lib/mock";
+import { useState } from "react";
+
+import { FleetTopology } from "@/components/fleet-topology";
+import { NodeDetailPanel } from "@/components/node-detail-panel";
+import { getNode, mockNodes } from "@/lib/mock";
+
+function PanelHeader({ label, children }: { label: string; children?: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between border-b px-4 py-3">
+      <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+        {label}
+      </span>
+      {children}
+    </div>
+  );
+}
+
+function Legend() {
+  return (
+    <div className="flex gap-3 font-mono text-[11px] text-muted-foreground">
+      <span className="inline-flex items-center gap-1.5">
+        <i className="h-2 w-2 rounded-full bg-success" />
+        Established
+      </span>
+      <span className="inline-flex items-center gap-1.5">
+        <i className="h-2 w-2 rounded-full bg-warning" />
+        Pending
+      </span>
+      <span className="inline-flex items-center gap-1.5">
+        <i className="h-2 w-2 rounded-full bg-destructive" />
+        Revoked
+      </span>
+    </div>
+  );
+}
+
+// The default selection is the first established intermediate, matching the
+// reference (ACME Intermediate CA G1). Falls back to the first node.
+const defaultSelected =
+  mockNodes.find((n) => n.role === "intermediate" && n.identityState === "ESTABLISHED")?.name ??
+  mockNodes[0].name;
 
 export function FleetPage() {
+  const [selected, setSelected] = useState(defaultSelected);
+  const rootCount = mockNodes.filter((n) => n.role === "root").length;
+  const node = getNode(selected) ?? mockNodes[0];
+
   return (
-    <section className="space-y-6">
+    <section className="space-y-5">
       <div className="space-y-1">
-        <h1 className="font-mono text-2xl font-bold tracking-tight">Fleet</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Fleet</h1>
         <p className="text-sm text-muted-foreground">
-          CryptOS CA nodes linked to this Fleet Manager.
+          {rootCount} Root · {mockNodes.length} nodes · click a node to inspect
         </p>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {mockNodes.map((node) => (
-          <NodeCard key={node.name} node={node} />
-        ))}
+
+      <div className="grid grid-cols-1 gap-5">
+        <div className="w-full rounded-xl border bg-card">
+          <PanelHeader label="Topology">
+            <Legend />
+          </PanelHeader>
+          <FleetTopology selected={selected} onSelect={setSelected} />
+        </div>
+
+        <div className="w-full rounded-xl border bg-card">
+          <PanelHeader label={`Node · ${node.name}`} />
+          <NodeDetailPanel node={node} />
+        </div>
       </div>
     </section>
   );
