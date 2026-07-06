@@ -55,7 +55,7 @@ describe("FleetPage", () => {
     // The group header shows title, subtitle, and the member count; the member
     // CNs are hidden until the group is expanded. Both G1 and G2 collapse to
     // group boxes, so "Issuing CAs" appears twice — use getAllByText.
-    expect(screen.getAllByText("Issuing CAs").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Issuing CAs")).toHaveLength(2);
     expect(screen.getByText(`under ${parentCn}`)).toBeInTheDocument();
     expect(screen.getByText(String(members.length))).toBeInTheDocument();
     expect(screen.queryByText(members[0].cn)).not.toBeInTheDocument();

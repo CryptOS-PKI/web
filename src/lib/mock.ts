@@ -100,7 +100,7 @@ const issuingFanOut = (options: {
       address: `10.20.${subnet}.${10 + i}:8443`,
       role: "issuing",
       identityState,
-      cn: `${cnPrefix} G${n}`,
+      cn: `${cnPrefix}${n}`,
       parentCn,
       issuer: pending ? `${parentCn} (pending)` : parentCn,
       issued,
@@ -191,7 +191,7 @@ export const mockNodes: Node[] = [
   },
   ...issuingFanOut({
     count: 12,
-    cnPrefix: "ACME Issuing CA",
+    cnPrefix: "ACME Issuing CA G",
     namePrefix: "acme-issuing-",
     parentCn: "ACME Intermediate CA G1",
     subnet: 1,

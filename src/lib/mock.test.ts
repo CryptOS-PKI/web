@@ -32,6 +32,11 @@ describe("mock topology", () => {
     expect(childrenOf("ACME Intermediate CA G3")).toHaveLength(3);
   });
 
+  it("uses the correct H/K letter prefix for the G2 and G3 issuing CNs", () => {
+    expect(childrenOf("ACME Intermediate CA G2")[0].cn).toBe("ACME Issuing CA H01");
+    expect(childrenOf("ACME Intermediate CA G3")[0].cn).toBe("ACME Issuing CA K01");
+  });
+
   it("makes the G2 branch fully revoked and the G3 branch established", () => {
     expect(getNodeByCn("ACME Intermediate CA G2")?.identityState).toBe("REVOKED");
     expect(aggregateState(childrenOf("ACME Intermediate CA G2"))).toBe("REVOKED");
