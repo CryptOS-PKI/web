@@ -83,3 +83,15 @@ describe("FleetPage", () => {
     expect(screen.getByText("142 / 4")).toBeInTheDocument();
   });
 });
+
+describe("FleetPage focus view", () => {
+  it("enters focus and pins the Root when a circle is clicked", () => {
+    renderFleet();
+    // Click the intermediate G1 circle (its CN label is the accessible text).
+    fireEvent.click(screen.getAllByText("ACME Intermediate CA G1")[0]);
+    // Overview control appears only in focus mode.
+    expect(screen.getByRole("button", { name: /overview/i })).toBeInTheDocument();
+    // Root is still on screen.
+    expect(screen.getAllByText("ACME Root CA G1").length).toBeGreaterThan(0);
+  });
+});

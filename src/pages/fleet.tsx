@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { FleetTopology } from "@/components/fleet-topology";
 import { NodeDetailPanel } from "@/components/node-detail-panel";
@@ -60,24 +60,51 @@ const defaultSelected =
 
 export const FleetPage = () => {
   const [selected, setSelected] = useState(defaultSelected);
+  const [focus, setFocus] = useState<null | string>(null);
   const rootCount = mockNodes.filter((n) => n.role === "root").length;
   const node = getNode(selected) ?? mockNodes[0];
+
+  // Clicking a node focuses AND selects it (one gesture).
+  const handleFocus = (name: string) => {
+    setSelected(name);
+    setFocus(name);
+  };
+
+  // Esc leaves focus and returns to the overview.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setFocus(null);
+    };
+    globalThis.addEventListener("keydown", onKey);
+    return () => globalThis.removeEventListener("keydown", onKey);
+  }, []);
 
   return (
     <section className="space-y-5">
       <div className="space-y-1">
         <h1 className="text-2xl font-bold tracking-tight">Fleet</h1>
         <p className="text-sm text-muted-foreground">
-          {rootCount} Root · {mockNodes.length} nodes · large groups collapse — click to expand
+          {rootCount} Root &middot; {mockNodes.length} nodes &middot; click a node to focus its
+          neighborhood
         </p>
       </div>
 
       <div className="grid grid-cols-1 gap-5">
         <div className="w-full rounded-xl border bg-card">
           <PanelHeader label="Topology">
-            <Legend />
+            {focus ? (
+              <button
+                className="rounded-md border px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground hover:bg-secondary"
+                onClick={() => setFocus(null)}
+                type="button"
+              >
+                Overview
+              </button>
+            ) : (
+              <Legend />
+            )}
           </PanelHeader>
-          <FleetTopology onSelect={setSelected} selected={selected} />
+          <FleetTopology focus={focus} onFocus={handleFocus} selected={selected} />
         </div>
 
         <div className="w-full rounded-xl border bg-card">
