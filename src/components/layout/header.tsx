@@ -21,7 +21,7 @@ import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Wordmark } from "@/components/layout/wordmark";
 import { useAuth } from "@/context/auth";
 
-export function Header() {
+export const Header = () => {
   const { operator } = useAuth();
 
   return (
@@ -42,4 +42,4 @@ export function Header() {
       </div>
     </header>
   );
-}
+};

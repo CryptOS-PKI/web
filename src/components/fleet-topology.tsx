@@ -74,22 +74,22 @@ const groupLayout: Record<string, GroupBox> = {
 
 // Cubic bezier from a parent to a child, bending vertically toward the child so
 // the feeder reads as a branch. Mirrors the reference control points.
-function edgePath(from: Layout, to: Layout): string {
+const edgePath = (from: Layout, to: Layout): string => {
   const midX = from.x + (to.x - from.x) * 0.5;
   return `M${from.x},${from.y} C${midX},${from.y} ${to.x - 70},${to.y} ${to.x},${to.y}`;
-}
+};
 
 // Feeder from a parent circle to the left edge of a collapsed group box.
-function groupEdgePath(from: Layout, box: GroupBox): string {
+const groupEdgePath = (from: Layout, box: GroupBox): string => {
   const toX = box.x;
   const toY = box.anchorY;
   const midX = from.x + (toX - from.x) * 0.5;
   return `M${from.x},${from.y} C${midX},${from.y} ${toX - 40},${toY} ${toX},${toY}`;
-}
+};
 
 // Prose describing a trust edge, colored by the child's state. Copy tracks the
 // reference tooltips.
-function edgeDescription(parent: Node, child: Node): string {
+const edgeDescription = (parent: Node, child: Node): string => {
   switch (child.identityState) {
     case "ESTABLISHED":
       return `Signed under the sub-CA profile (CA:TRUE, pathLen 1). Identity ESTABLISHED; ${child.issued} certs issued downstream. Chain verifies to ${parent.cn}.`;
@@ -98,10 +98,10 @@ function edgeDescription(parent: Node, child: Node): string {
     case "REVOKED":
       return `REVOKED. The sub-CA certificate was revoked (all ${child.revoked} downstream certs revoked) and the Fleet Manager peer cert was pulled. Flow halted — do not trust this branch.`;
   }
-}
+};
 
 // Prose describing a collapsed group's feeder, colored by the aggregate state.
-function groupEdgeDescription(parent: Node, members: Node[], state: IdentityState): string {
+const groupEdgeDescription = (parent: Node, members: Node[], state: IdentityState): string => {
   const s = summarize(members);
   switch (state) {
     case "ESTABLISHED":
@@ -111,7 +111,7 @@ function groupEdgeDescription(parent: Node, members: Node[], state: IdentityStat
     case "REVOKED":
       return `${members.length} issuing CAs under ${parent.cn}: ${s.revoked} revoked. Do not trust the revoked branch(es); ${s.established} remain established.`;
   }
-}
+};
 
 interface Tip {
   x: number;
@@ -121,15 +121,15 @@ interface Tip {
   state: IdentityState;
 }
 
-function nodeGlyph(node: Node): { text: string; fontSize?: number } {
+const nodeGlyph = (node: Node): { text: string; fontSize?: number } => {
   if (node.identityState === "AWAITING_CERT") return { text: "?", fontSize: 15 };
   return { text: String(node.issued) };
-}
+};
 
 // A collapsed group box for a wide fan-out. Header toggles a scrollable member
 // list; clicking a member selects it so the shared detail panel updates. Colors
 // come from the theme tokens.
-function GroupBox({
+const GroupBox = ({
   parent,
   members,
   box,
@@ -141,7 +141,7 @@ function GroupBox({
   box: GroupBox;
   selected: string;
   onSelect: (name: string) => void;
-}) {
+}) => {
   const [expanded, setExpanded] = useState(false);
   const s = summarize(members);
   const height = expanded ? 220 : 74;
@@ -204,15 +204,15 @@ function GroupBox({
       </div>
     </foreignObject>
   );
-}
+};
 
-export function FleetTopology({
+export const FleetTopology = ({
   selected,
   onSelect,
 }: {
   selected: string;
   onSelect: (name: string) => void;
-}) {
+}) => {
   const [tip, setTip] = useState<Tip | null>(null);
 
   // Split children into wide fan-outs (collapse to a group) vs. small fan-outs
@@ -393,4 +393,4 @@ export function FleetTopology({
       ) : null}
     </div>
   );
-}
+};

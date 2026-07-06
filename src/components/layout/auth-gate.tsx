@@ -23,7 +23,7 @@ import { useAuth } from "@/context/auth";
 // While the browser presents its client certificate for mTLS, show a gate
 // instead of the app. Once the (stubbed) handshake resolves to an authenticated
 // operator, the routed shell renders.
-export function AuthGate({ children }: { children: ReactNode }) {
+export const AuthGate = ({ children }: { children: ReactNode }) => {
   const { status } = useAuth();
 
   if (status === "authenticated") {
@@ -39,4 +39,4 @@ export function AuthGate({ children }: { children: ReactNode }) {
       </div>
     </div>
   );
-}
+};

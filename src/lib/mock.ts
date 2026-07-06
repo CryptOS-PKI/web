@@ -71,6 +71,45 @@ export interface Node {
   ocsp?: string;
 }
 
+// A wide fan-out of issuing CAs under ACME Intermediate CA G1. This intentionally
+// exceeds `groupThreshold` so the topology view collapses it into a single group
+// box instead of drawing a dozen circles. The states are seeded so the group's
+// aggregate summary and feeder color exercise the mixed case (one pending, one
+// revoked, the rest established).
+const issuingFanOut = (): Node[] => {
+  const count = 12;
+  return Array.from({ length: count }, (_, i): Node => {
+    const n = String(i + 1).padStart(2, "0");
+    const pending = i === 6;
+    const revoked = i === 10;
+    const identityState: IdentityState = pending
+      ? "AWAITING_CERT"
+      : revoked
+        ? "REVOKED"
+        : "ESTABLISHED";
+    const issued = pending ? 0 : revoked ? 0 : 60 + i * 7;
+    return {
+      name: `acme-issuing-${n}`,
+      address: `10.20.1.${10 + i}:8443`,
+      role: "issuing",
+      identityState,
+      cn: `ACME Issuing CA G${n}`,
+      parentCn: "ACME Intermediate CA G1",
+      issuer: pending ? "ACME Intermediate CA G1 (pending)" : "ACME Intermediate CA G1",
+      issued,
+      revoked: revoked ? 44 : 0,
+      tpm: "UNAVAILABLE · nodeID",
+      fleetManager: revoked
+        ? { linked: false, note: "peer cert pulled" }
+        : { linked: true, peerCertDays: 90 - i },
+      bootCount: 1,
+      uptime: `${i}d 0${(i % 9) + 1}h`,
+      crl: identityState === "ESTABLISHED" ? `http://pki.acme.example/iss-g${n}/crl` : undefined,
+      ocsp: identityState === "ESTABLISHED" ? `http://pki.acme.example/iss-g${n}/ocsp` : undefined,
+    };
+  });
+};
+
 export const mockNodes: Node[] = [
   {
     name: "acme-root-01",
@@ -123,53 +162,14 @@ export const mockNodes: Node[] = [
   ...issuingFanOut(),
 ];
 
-// A wide fan-out of issuing CAs under ACME Intermediate CA G1. This intentionally
-// exceeds `groupThreshold` so the topology view collapses it into a single group
-// box instead of drawing a dozen circles. The states are seeded so the group's
-// aggregate summary and feeder color exercise the mixed case (one pending, one
-// revoked, the rest established).
-function issuingFanOut(): Node[] {
-  const count = 12;
-  return Array.from({ length: count }, (_, i): Node => {
-    const n = String(i + 1).padStart(2, "0");
-    const pending = i === 6;
-    const revoked = i === 10;
-    const identityState: IdentityState = pending
-      ? "AWAITING_CERT"
-      : revoked
-        ? "REVOKED"
-        : "ESTABLISHED";
-    const issued = pending ? 0 : revoked ? 0 : 60 + i * 7;
-    return {
-      name: `acme-issuing-${n}`,
-      address: `10.20.1.${10 + i}:8443`,
-      role: "issuing",
-      identityState,
-      cn: `ACME Issuing CA G${n}`,
-      parentCn: "ACME Intermediate CA G1",
-      issuer: pending ? "ACME Intermediate CA G1 (pending)" : "ACME Intermediate CA G1",
-      issued,
-      revoked: revoked ? 44 : 0,
-      tpm: "UNAVAILABLE · nodeID",
-      fleetManager: revoked
-        ? { linked: false, note: "peer cert pulled" }
-        : { linked: true, peerCertDays: 90 - i },
-      bootCount: 1,
-      uptime: `${i}d 0${(i % 9) + 1}h`,
-      crl: identityState === "ESTABLISHED" ? `http://pki.acme.example/iss-g${n}/crl` : undefined,
-      ocsp: identityState === "ESTABLISHED" ? `http://pki.acme.example/iss-g${n}/ocsp` : undefined,
-    };
-  });
-}
-
-export function getNode(name: string): Node | undefined {
+export const getNode = (name: string): Node | undefined => {
   return mockNodes.find((node) => node.name === name);
-}
+};
 
 /** Resolve a node by its subject common name. */
-export function getNodeByCn(cn: string): Node | undefined {
+export const getNodeByCn = (cn: string): Node | undefined => {
   return mockNodes.find((node) => node.cn === cn);
-}
+};
 
 export const roleLabels: Record<NodeRole, string> = {
   root: "Root CA",
@@ -190,7 +190,7 @@ export interface TrustEdge {
 }
 
 /** Every parent->child trust edge implied by the nodes' `parentCn` links. */
-export function trustEdges(): TrustEdge[] {
+export const trustEdges = (): TrustEdge[] => {
   const edges: TrustEdge[] = [];
   for (const child of mockNodes) {
     if (!child.parentCn) continue;
@@ -198,7 +198,7 @@ export function trustEdges(): TrustEdge[] {
     if (parent) edges.push({ parent, child });
   }
   return edges;
-}
+};
 
 /**
  * A parent with more direct children than this renders as a single collapsed
@@ -208,9 +208,9 @@ export function trustEdges(): TrustEdge[] {
 export const groupThreshold = 5;
 
 /** Direct children of a parent CA, resolved by the children's `parentCn`. */
-export function childrenOf(parentCn: string): Node[] {
+export const childrenOf = (parentCn: string): Node[] => {
   return mockNodes.filter((node) => node.parentCn === parentCn);
-}
+};
 
 /** Per-state member counts for a set of nodes. */
 export interface StateSummary {
@@ -220,7 +220,7 @@ export interface StateSummary {
 }
 
 /** Tally a set of nodes by identity state. */
-export function summarize(nodes: Node[]): StateSummary {
+export const summarize = (nodes: Node[]): StateSummary => {
   const summary: StateSummary = { established: 0, pending: 0, revoked: 0 };
   for (const node of nodes) {
     if (node.identityState === "ESTABLISHED") summary.established += 1;
@@ -228,16 +228,16 @@ export function summarize(nodes: Node[]): StateSummary {
     else summary.revoked += 1;
   }
   return summary;
-}
+};
 
 /**
  * The worst-case identity state across a group, used to color the group's
  * feeder edge: REVOKED if any member is revoked, AWAITING_CERT if any is
  * pending, otherwise ESTABLISHED.
  */
-export function aggregateState(nodes: Node[]): IdentityState {
+export const aggregateState = (nodes: Node[]): IdentityState => {
   const summary = summarize(nodes);
   if (summary.revoked > 0) return "REVOKED";
   if (summary.pending > 0) return "AWAITING_CERT";
   return "ESTABLISHED";
-}
+};

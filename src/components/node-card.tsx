@@ -30,7 +30,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { roleLabels, type Node } from "@/lib/mock";
 
-export function NodeCard({ node }: { node: Node }) {
+export const NodeCard = ({ node }: { node: Node }) => {
   const isRoot = node.role === "root";
 
   return (
@@ -84,4 +84,4 @@ export function NodeCard({ node }: { node: Node }) {
       </CardFooter>
     </Card>
   );
-}
+};
