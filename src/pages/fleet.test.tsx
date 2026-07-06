@@ -94,4 +94,26 @@ describe("FleetPage focus view", () => {
     // Root is still on screen.
     expect(screen.getAllByText("ACME Root CA G1").length).toBeGreaterThan(0);
   });
+
+  it("updates the detail panel to the focused node (focus == select)", () => {
+    renderFleet();
+    fireEvent.click(screen.getAllByText("ACME Intermediate CA G1")[0]);
+    expect(screen.getByText(/Node · acme-intermediate-01/)).toBeInTheDocument();
+  });
+
+  it("returns to the overview on Escape", () => {
+    renderFleet();
+    fireEvent.click(screen.getAllByText("ACME Intermediate CA G1")[0]);
+    expect(screen.getByRole("button", { name: /overview/i })).toBeInTheDocument();
+    fireEvent.keyDown(globalThis.document.body, { key: "Escape" });
+    expect(screen.queryByRole("button", { name: /overview/i })).not.toBeInTheDocument();
+  });
+
+  it("refocuses onto a branch when its chip is clicked", () => {
+    renderFleet();
+    // Focus G1 -> chips include the G3 branch. Click it -> focus moves to G3.
+    fireEvent.click(screen.getAllByText("ACME Intermediate CA G1")[0]);
+    fireEvent.click(screen.getByRole("button", { name: /ACME Intermediate CA G3/i }));
+    expect(screen.getByText(/Node · acme-intermediate-03/)).toBeInTheDocument();
+  });
 });
