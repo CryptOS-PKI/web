@@ -21,7 +21,7 @@ import { FleetTopology } from "@/components/fleet-topology";
 import { NodeDetailPanel } from "@/components/node-detail-panel";
 import { getNode, mockNodes } from "@/lib/mock";
 
-function PanelHeader({ label, children }: { label: string; children?: React.ReactNode }) {
+const PanelHeader = ({ label, children }: { label: string; children?: React.ReactNode }) => {
   return (
     <div className="flex items-center justify-between border-b px-4 py-3">
       <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
@@ -30,9 +30,9 @@ function PanelHeader({ label, children }: { label: string; children?: React.Reac
       {children}
     </div>
   );
-}
+};
 
-function Legend() {
+const Legend = () => {
   return (
     <div className="flex gap-3 font-mono text-[11px] text-muted-foreground">
       <span className="inline-flex items-center gap-1.5">
@@ -49,7 +49,7 @@ function Legend() {
       </span>
     </div>
   );
-}
+};
 
 // The default selection is the first established intermediate, matching the
 // reference (ACME Intermediate CA G1). Falls back to the first node.
@@ -57,7 +57,7 @@ const defaultSelected =
   mockNodes.find((n) => n.role === "intermediate" && n.identityState === "ESTABLISHED")?.name ??
   mockNodes[0].name;
 
-export function FleetPage() {
+export const FleetPage = () => {
   const [selected, setSelected] = useState(defaultSelected);
   const rootCount = mockNodes.filter((n) => n.role === "root").length;
   const node = getNode(selected) ?? mockNodes[0];
@@ -86,4 +86,4 @@ export function FleetPage() {
       </div>
     </section>
   );
-}
+};

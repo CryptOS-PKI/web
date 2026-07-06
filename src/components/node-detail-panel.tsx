@@ -22,7 +22,7 @@ import { Button } from "@/components/ui/button";
 import { roleLabels, type Node } from "@/lib/mock";
 
 // A single labeled field cell in the detail grid.
-function Field({
+const Field = ({
   label,
   children,
   mono = true,
@@ -30,7 +30,7 @@ function Field({
   label: string;
   children: React.ReactNode;
   mono?: boolean;
-}) {
+}) => {
   return (
     <div className="flex flex-col items-start gap-1 rounded-lg border bg-secondary px-3 py-2.5">
       <span className="font-mono text-[10.5px] uppercase tracking-wider text-muted-foreground">
@@ -39,16 +39,16 @@ function Field({
       <span className={mono ? "font-mono text-xs" : "text-sm"}>{children}</span>
     </div>
   );
-}
+};
 
-function fleetManagerText(node: Node): string {
+const fleetManagerText = (node: Node): string => {
   const fm = node.fleetManager;
   if (!fm.linked) return `REVOKED · ${fm.note ?? "peer cert pulled"}`;
   if (fm.peerCertDays !== undefined) return `LINKED · peer cert ${fm.peerCertDays}d`;
   return "LINKED";
-}
+};
 
-export function NodeDetailPanel({ node }: { node: Node }) {
+export const NodeDetailPanel = ({ node }: { node: Node }) => {
   const established = node.identityState === "ESTABLISHED";
   const hasEndpoints = Boolean(node.crl && node.ocsp);
 
@@ -100,4 +100,4 @@ export function NodeDetailPanel({ node }: { node: Node }) {
       </div>
     </div>
   );
-}
+};

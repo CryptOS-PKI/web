@@ -20,7 +20,7 @@ import { Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/context/theme";
 
-export function ThemeToggle() {
+export const ThemeToggle = () => {
   const { theme, toggleTheme } = useTheme();
   const nextLabel = theme === "dark" ? "Switch to light theme" : "Switch to dark theme";
 
@@ -35,4 +35,4 @@ export function ThemeToggle() {
       {theme === "dark" ? <Sun /> : <Moon />}
     </Button>
   );
-}
+};

@@ -34,7 +34,7 @@ const navItems: NavItem[] = [
   { to: "/audit", label: "Audit", icon: ClipboardList },
 ];
 
-export function Sidebar() {
+export const Sidebar = () => {
   return (
     <nav className="flex w-48 shrink-0 flex-col gap-1 border-r bg-card p-3">
       {navItems.map(({ to, label, icon: Icon, end }) => (
@@ -57,4 +57,4 @@ export function Sidebar() {
       ))}
     </nav>
   );
-}
+};

@@ -25,7 +25,7 @@ import { NodeDetailPage } from "@/pages/node-detail";
 import { NodesPage } from "@/pages/nodes";
 import { NotFoundPage } from "@/pages/not-found";
 
-export function App() {
+export const App = () => {
   return (
     <AuthGate>
       <Routes>
@@ -39,4 +39,4 @@ export function App() {
       </Routes>
     </AuthGate>
   );
-}
+};

@@ -17,7 +17,7 @@ limitations under the License.
 */
 import { Card, CardContent } from "@/components/ui/card";
 
-export function AuditPage() {
+export const AuditPage = () => {
   return (
     <section className="space-y-6">
       <div className="space-y-1">
@@ -33,4 +33,4 @@ export function AuditPage() {
       </Card>
     </section>
   );
-}
+};

@@ -28,7 +28,7 @@ const presentation: Record<IdentityState | "REVOKED", Presentation> = {
   REVOKED: { label: "Revoked", variant: "destructive" },
 };
 
-export function IdentityBadge({ state }: { state: IdentityState | "REVOKED" }) {
+export const IdentityBadge = ({ state }: { state: IdentityState | "REVOKED" }) => {
   const { label, variant } = presentation[state];
   return <Badge variant={variant}>{label}</Badge>;
-}
+};

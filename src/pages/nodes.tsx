@@ -22,7 +22,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { mockNodes, roleLabels } from "@/lib/mock";
 
-export function NodesPage() {
+export const NodesPage = () => {
   return (
     <section className="space-y-6">
       <div className="space-y-1">
@@ -52,4 +52,4 @@ export function NodesPage() {
       </Card>
     </section>
   );
-}
+};

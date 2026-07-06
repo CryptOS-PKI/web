@@ -20,7 +20,7 @@ import { Outlet } from "react-router-dom";
 import { Header } from "@/components/layout/header";
 import { Sidebar } from "@/components/layout/sidebar";
 
-export function AppShell() {
+export const AppShell = () => {
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
@@ -32,4 +32,4 @@ export function AppShell() {
       </div>
     </div>
   );
-}
+};

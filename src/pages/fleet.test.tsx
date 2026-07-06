@@ -22,13 +22,13 @@ import { describe, expect, it } from "vitest";
 import { FleetPage } from "@/pages/fleet";
 import { childrenOf, groupThreshold, mockNodes } from "@/lib/mock";
 
-function renderFleet() {
+const renderFleet = () => {
   return render(
     <MemoryRouter>
       <FleetPage />
     </MemoryRouter>,
   );
-}
+};
 
 // The CNs of the individually-drawn nodes (roots + intermediates); wide fan-outs
 // collapse into a group box and are not drawn as circles.

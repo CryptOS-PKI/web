@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 
 // The CryptOS wordmark: shield mark plus a mono wordmark with the "OS" in the
 // hero color (Shield Blue, --primary).
-export function Wordmark({ className }: { className?: string }) {
+export const Wordmark = ({ className }: { className?: string }) => {
   return (
     <span className={cn("flex items-center gap-2 font-mono text-lg font-bold", className)}>
       <span aria-hidden="true" className="text-xl leading-none">
@@ -30,4 +30,4 @@ export function Wordmark({ className }: { className?: string }) {
       </span>
     </span>
   );
-}
+};

@@ -19,7 +19,7 @@ import { Link } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 
-export function NotFoundPage() {
+export const NotFoundPage = () => {
   return (
     <section className="flex flex-col items-center justify-center gap-4 py-24 text-center">
       <p className="font-mono text-4xl font-bold text-primary">404</p>
@@ -29,4 +29,4 @@ export function NotFoundPage() {
       </Button>
     </section>
   );
-}
+};

@@ -25,7 +25,7 @@ const SHIELD = "\u{1F6E1}\u{FE0F}";
 // hardcoded glyph: when an operator logo URL is provided it renders an SVG
 // <image>; otherwise it falls back to the CryptOS shield. Swapping the brand is
 // a one-line change in src/lib/branding.ts.
-export function RootMark({
+export const RootMark = ({
   logoUrl = branding.rootLogoUrl,
   size = 34,
   y = 4,
@@ -36,7 +36,7 @@ export function RootMark({
   size?: number;
   /** Vertical baseline for the shield glyph text. */
   y?: number;
-}) {
+}) => {
   if (logoUrl) {
     return (
       <image
@@ -61,4 +61,4 @@ export function RootMark({
       {SHIELD}
     </text>
   );
-}
+};
