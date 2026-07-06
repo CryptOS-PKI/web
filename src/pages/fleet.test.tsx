@@ -15,12 +15,13 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 
-import { FleetPage } from "@/pages/fleet";
 import { childrenOf, groupThreshold, mockNodes } from "@/lib/mock";
+import { FleetPage } from "@/pages/fleet";
 
 const renderFleet = () => {
   return render(

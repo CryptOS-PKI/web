@@ -15,6 +15,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 import type { ReactNode } from "react";
 
 import { Wordmark } from "@/components/layout/wordmark";
@@ -34,7 +35,7 @@ export const AuthGate = ({ children }: { children: ReactNode }) => {
     <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-background">
       <Wordmark className="text-2xl" />
       <div className="flex items-center gap-3 font-mono text-sm text-muted-foreground">
-        <span className="size-2 animate-pulse rounded-full bg-primary" aria-hidden="true" />
+        <span aria-hidden="true" className="size-2 animate-pulse rounded-full bg-primary" />
         Presenting client certificate&hellip;
       </div>
     </div>

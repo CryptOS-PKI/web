@@ -15,6 +15,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 import { Link, useParams } from "react-router-dom";
 
 import { NodeDetailPanel } from "@/components/node-detail-panel";
@@ -32,7 +33,7 @@ export const NodeDetailPage = () => {
         <p className="text-sm text-muted-foreground">
           No linked node named <span className="font-mono">{name}</span>.
         </p>
-        <Button variant="outline" asChild>
+        <Button asChild variant="outline">
           <Link to="/nodes">Back to nodes</Link>
         </Button>
       </section>
@@ -48,7 +49,7 @@ export const NodeDetailPage = () => {
       <div className="w-full rounded-xl border bg-card">
         <NodeDetailPanel node={node} />
       </div>
-      <Button variant="outline" asChild>
+      <Button asChild variant="outline">
         <Link to="/nodes">Back to nodes</Link>
       </Button>
     </section>

@@ -15,6 +15,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 import { Route, Routes } from "react-router-dom";
 
 import { AppShell } from "@/components/layout/app-shell";
@@ -30,11 +31,11 @@ export const App = () => {
     <AuthGate>
       <Routes>
         <Route element={<AppShell />}>
-          <Route index element={<FleetPage />} />
-          <Route path="nodes" element={<NodesPage />} />
-          <Route path="nodes/:name" element={<NodeDetailPage />} />
-          <Route path="audit" element={<AuditPage />} />
-          <Route path="*" element={<NotFoundPage />} />
+          <Route element={<FleetPage />} index />
+          <Route element={<NodesPage />} path="nodes" />
+          <Route element={<NodeDetailPage />} path="nodes/:name" />
+          <Route element={<AuditPage />} path="audit" />
+          <Route element={<NotFoundPage />} path="*" />
         </Route>
       </Routes>
     </AuthGate>

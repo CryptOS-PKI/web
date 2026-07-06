@@ -15,6 +15,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 import { Link } from "react-router-dom";
 
 import { ThemeToggle } from "@/components/layout/theme-toggle";
@@ -27,8 +28,8 @@ export const Header = () => {
   return (
     <header className="flex h-14 items-center justify-between border-b bg-card px-4">
       <Link
-        to="/"
         className="focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded-sm"
+        to="/"
       >
         <Wordmark />
       </Link>

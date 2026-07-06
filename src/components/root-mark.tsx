@@ -15,6 +15,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 import { branding } from "@/lib/branding";
 
 // Shield glyph rendered from an escape so no literal emoji lands in source
@@ -40,23 +41,23 @@ export const RootMark = ({
   if (logoUrl) {
     return (
       <image
+        aria-hidden="true"
+        height={size}
         href={logoUrl}
+        preserveAspectRatio="xMidYMid meet"
+        width={size}
         x={-size / 2}
         y={-size / 2}
-        width={size}
-        height={size}
-        preserveAspectRatio="xMidYMid meet"
-        aria-hidden="true"
       />
     );
   }
   return (
     <text
-      y={y}
-      textAnchor="middle"
+      aria-hidden="true"
       className="fill-foreground font-mono font-semibold"
       style={{ fontSize: 12 }}
-      aria-hidden="true"
+      textAnchor="middle"
+      y={y}
     >
       {SHIELD}
     </text>

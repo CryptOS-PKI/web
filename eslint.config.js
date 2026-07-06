@@ -15,20 +15,41 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-import js from "@eslint/js";
-import globals from "globals";
+
+import { createESLintConfig } from "@the-rabbit-hole/eslint-config";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
-import tseslint from "typescript-eslint";
-import prettier from "eslint-config-prettier";
+import globals from "globals";
 
-export default tseslint.config(
-  { ignores: ["dist", "coverage", "node_modules"] },
+// The shared config (@the-rabbit-hole/eslint-config) bundles the TypeScript,
+// React, Perfectionist, Unicorn, and Prettier rule sets and ships func-style.
+// React Fast Refresh and the React Hooks rules are Vite-app concerns not in the
+// shared config, so they are layered on here alongside it.
+export default [
+  ...createESLintConfig(),
   {
-    extends: [js.configs.recommended, ...tseslint.configs.recommended],
+    // A few of the shared config's Unicorn defaults fight conventions this repo
+    // is committed to; each is turned off (or narrowed) with a specific reason.
+    rules: {
+      // Filenames are PascalCase for React components and kebab-case for
+      // everything else (shadcn/ui primitives, routes). Unicorn defaults to
+      // camelCase, which neither convention uses.
+      "unicorn/filename-case": ["error", { cases: { kebabCase: true, pascalCase: true } }],
+      // React and DOM APIs legitimately use null: useRef(null), querySelector,
+      // event targets. Coercing to undefined would be wrong.
+      "unicorn/no-null": "off",
+      // The Apache 2.0 header carries the canonical http:// license URL that
+      // golic injects and `task license` verifies; prefer-https would rewrite
+      // it and break the license gate.
+      "unicorn/prefer-https": "off",
+      // "Props", "ref", "env", and "e" (event/error) are idiomatic in React and
+      // TypeScript; expanding them hurts readability.
+      "unicorn/prevent-abbreviations": "off",
+    },
+  },
+  {
     files: ["**/*.{ts,tsx}"],
     languageOptions: {
-      ecmaVersion: 2022,
       globals: globals.browser,
     },
     plugins: {
@@ -38,7 +59,6 @@ export default tseslint.config(
     rules: {
       ...reactHooks.configs.recommended.rules,
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
-      "func-style": ["error", "expression"],
     },
   },
   {
@@ -56,5 +76,4 @@ export default tseslint.config(
       globals: globals.node,
     },
   },
-  prettier,
-);
+];

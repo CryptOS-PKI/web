@@ -15,20 +15,21 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 import { Link } from "react-router-dom";
 
 import { IdentityBadge } from "@/components/identity-badge";
 import { Button } from "@/components/ui/button";
-import { roleLabels, type Node } from "@/lib/mock";
+import { type Node, roleLabels } from "@/lib/mock";
 
 // A single labeled field cell in the detail grid.
 const Field = ({
-  label,
   children,
+  label,
   mono = true,
 }: {
-  label: string;
   children: React.ReactNode;
+  label: string;
   mono?: boolean;
 }) => {
   return (
@@ -85,16 +86,16 @@ export const NodeDetailPanel = ({ node }: { node: Node }) => {
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
-        <Button size="sm" disabled={!established}>
+        <Button disabled={!established} size="sm">
           Issue leaf
         </Button>
-        <Button size="sm" variant="outline" asChild>
+        <Button asChild size="sm" variant="outline">
           <Link to={`/nodes/${node.name}`}>View chain</Link>
         </Button>
-        <Button size="sm" variant="outline" disabled={node.revoked === 0}>
+        <Button disabled={node.revoked === 0} size="sm" variant="outline">
           Revocations
         </Button>
-        <Button size="sm" variant="destructive" disabled={node.identityState === "REVOKED"}>
+        <Button disabled={node.identityState === "REVOKED"} size="sm" variant="destructive">
           Revoke…
         </Button>
       </div>

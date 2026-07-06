@@ -15,6 +15,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 import { Link } from "react-router-dom";
 
 import { IdentityBadge } from "@/components/identity-badge";
@@ -35,8 +36,8 @@ export const NodesPage = () => {
             <div key={node.name}>
               {index > 0 ? <Separator /> : null}
               <Link
-                to={`/nodes/${node.name}`}
                 className="flex items-center justify-between gap-4 px-6 py-4 transition-colors hover:bg-accent"
+                to={`/nodes/${node.name}`}
               >
                 <div className="min-w-0">
                   <div className="truncate font-mono text-sm font-medium">{node.name}</div>
