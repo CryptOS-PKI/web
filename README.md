@@ -40,6 +40,20 @@ The build phases (project-wide):
 - 📡 [`api`](https://github.com/CryptOS-PKI/api) — shared `.proto` definitions; this repo consumes its generated TypeScript stubs.
 - 🧠 [`cryptos`](https://github.com/CryptOS-PKI/cryptos) — the OS / engine that runs the CAs this UI manages (indirectly, via `manager/`).
 
+## 🛠️ Build
+
+Requires Node 24+ and npm. All dependencies are self-hosted (fonts bundled as woff2, no runtime CDN).
+
+```bash
+npm install      # install dependencies
+npm run dev      # start the Vite dev server
+npm run build    # type-check and produce the static bundle in dist/
+npm run lint     # eslint (typescript-eslint) + prettier --check
+npm test         # vitest
+```
+
+The pre-push gate runs `npm run lint`, `npm test`, and `task license` (Apache 2.0 headers).
+
 ## 📄 License
 
 [Apache License 2.0](LICENSE). Copyright 2026 Shane.
