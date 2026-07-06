@@ -21,7 +21,7 @@ import { NodeDetailPanel } from "@/components/node-detail-panel";
 import { Button } from "@/components/ui/button";
 import { getNode, roleLabels } from "@/lib/mock";
 
-export function NodeDetailPage() {
+export const NodeDetailPage = () => {
   const { name } = useParams<{ name: string }>();
   const node = name ? getNode(name) : undefined;
 
@@ -53,4 +53,4 @@ export function NodeDetailPage() {
       </Button>
     </section>
   );
-}
+};

@@ -45,7 +45,7 @@ const DEV_OPERATOR: Operator = {
   serial: "3A:7F:0C:91:D2:44:8B:1E",
 };
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [state, setState] = useState<AuthState>({ status: "presenting", operator: null });
 
   useEffect(() => {
@@ -57,12 +57,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return <AuthContext.Provider value={state}>{children}</AuthContext.Provider>;
-}
+};
 
-export function useAuth(): AuthState {
+export const useAuth = (): AuthState => {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
-}
+};

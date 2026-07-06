@@ -26,9 +26,9 @@ const SHIELD = "\u{1F6E1}\u{FE0F}";
 // A CSP-safe, self-contained placeholder logo (data URI, no external host).
 const DATA_LOGO = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg'></svg>";
 
-function renderInSvg(node: React.ReactNode) {
+const renderInSvg = (node: React.ReactNode) => {
   return render(<svg>{node}</svg>);
-}
+};
 
 describe("RootMark", () => {
   it("falls back to the CryptOS shield when no logo URL is set", () => {

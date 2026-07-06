@@ -28,16 +28,16 @@ interface ThemeState {
 
 const ThemeContext = createContext<ThemeState | undefined>(undefined);
 
-function readInitialTheme(): Theme {
+const readInitialTheme = (): Theme => {
   const stored = localStorage.getItem(STORAGE_KEY);
   if (stored === "light" || stored === "dark") {
     return stored;
   }
   // Dark is the CryptOS default.
   return "dark";
-}
+};
 
-export function ThemeProvider({ children }: { children: ReactNode }) {
+export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   const [theme, setTheme] = useState<Theme>(readInitialTheme);
 
   useEffect(() => {
@@ -51,12 +51,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return <ThemeContext.Provider value={{ theme, toggleTheme }}>{children}</ThemeContext.Provider>;
-}
+};
 
-export function useTheme(): ThemeState {
+export const useTheme = (): ThemeState => {
   const context = useContext(ThemeContext);
   if (context === undefined) {
     throw new Error("useTheme must be used within a ThemeProvider");
   }
   return context;
-}
+};
