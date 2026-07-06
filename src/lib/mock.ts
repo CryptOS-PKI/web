@@ -120,22 +120,47 @@ export const mockNodes: Node[] = [
     crl: "http://pki.acme.example/int-g2/crl",
     ocsp: "http://pki.acme.example/int-g2/ocsp",
   },
-  {
-    name: "acme-issuing-01",
-    address: "10.20.0.31:8443",
-    role: "issuing",
-    identityState: "AWAITING_CERT",
-    cn: "ACME Issuing CA G1",
-    parentCn: "ACME Intermediate CA G1",
-    issuer: "ACME Intermediate CA G1 (pending)",
-    issued: 0,
-    revoked: 0,
-    tpm: "UNAVAILABLE · nodeID",
-    fleetManager: { linked: true, peerCertDays: 90 },
-    bootCount: 1,
-    uptime: "0d 02h",
-  },
+  ...issuingFanOut(),
 ];
+
+// A wide fan-out of issuing CAs under ACME Intermediate CA G1. This intentionally
+// exceeds `groupThreshold` so the topology view collapses it into a single group
+// box instead of drawing a dozen circles. The states are seeded so the group's
+// aggregate summary and feeder color exercise the mixed case (one pending, one
+// revoked, the rest established).
+function issuingFanOut(): Node[] {
+  const count = 12;
+  return Array.from({ length: count }, (_, i): Node => {
+    const n = String(i + 1).padStart(2, "0");
+    const pending = i === 6;
+    const revoked = i === 10;
+    const identityState: IdentityState = pending
+      ? "AWAITING_CERT"
+      : revoked
+        ? "REVOKED"
+        : "ESTABLISHED";
+    const issued = pending ? 0 : revoked ? 0 : 60 + i * 7;
+    return {
+      name: `acme-issuing-${n}`,
+      address: `10.20.1.${10 + i}:8443`,
+      role: "issuing",
+      identityState,
+      cn: `ACME Issuing CA G${n}`,
+      parentCn: "ACME Intermediate CA G1",
+      issuer: pending ? "ACME Intermediate CA G1 (pending)" : "ACME Intermediate CA G1",
+      issued,
+      revoked: revoked ? 44 : 0,
+      tpm: "UNAVAILABLE · nodeID",
+      fleetManager: revoked
+        ? { linked: false, note: "peer cert pulled" }
+        : { linked: true, peerCertDays: 90 - i },
+      bootCount: 1,
+      uptime: `${i}d 0${(i % 9) + 1}h`,
+      crl: identityState === "ESTABLISHED" ? `http://pki.acme.example/iss-g${n}/crl` : undefined,
+      ocsp: identityState === "ESTABLISHED" ? `http://pki.acme.example/iss-g${n}/ocsp` : undefined,
+    };
+  });
+}
 
 export function getNode(name: string): Node | undefined {
   return mockNodes.find((node) => node.name === name);
@@ -173,4 +198,46 @@ export function trustEdges(): TrustEdge[] {
     if (parent) edges.push({ parent, child });
   }
   return edges;
+}
+
+/**
+ * A parent with more direct children than this renders as a single collapsed
+ * group box in the topology instead of individual circles. Fan-outs at or below
+ * the threshold still draw as circles.
+ */
+export const groupThreshold = 5;
+
+/** Direct children of a parent CA, resolved by the children's `parentCn`. */
+export function childrenOf(parentCn: string): Node[] {
+  return mockNodes.filter((node) => node.parentCn === parentCn);
+}
+
+/** Per-state member counts for a set of nodes. */
+export interface StateSummary {
+  established: number;
+  pending: number;
+  revoked: number;
+}
+
+/** Tally a set of nodes by identity state. */
+export function summarize(nodes: Node[]): StateSummary {
+  const summary: StateSummary = { established: 0, pending: 0, revoked: 0 };
+  for (const node of nodes) {
+    if (node.identityState === "ESTABLISHED") summary.established += 1;
+    else if (node.identityState === "AWAITING_CERT") summary.pending += 1;
+    else summary.revoked += 1;
+  }
+  return summary;
+}
+
+/**
+ * The worst-case identity state across a group, used to color the group's
+ * feeder edge: REVOKED if any member is revoked, AWAITING_CERT if any is
+ * pending, otherwise ESTABLISHED.
+ */
+export function aggregateState(nodes: Node[]): IdentityState {
+  const summary = summarize(nodes);
+  if (summary.revoked > 0) return "REVOKED";
+  if (summary.pending > 0) return "AWAITING_CERT";
+  return "ESTABLISHED";
 }
