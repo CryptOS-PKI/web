@@ -19,10 +19,8 @@ limitations under the License.
 import { useEffect, useState } from "react";
 
 import { FleetTopology } from "@/components/fleet-topology";
-import { IdentityBadge } from "@/components/identity-badge";
 import { NodeDetailPanel } from "@/components/node-detail-panel";
 import { getNode, mockNodes, roleLabels } from "@/lib/mock";
-import { cn } from "@/lib/utils";
 
 const PanelHeader = ({ children, label }: { children?: React.ReactNode; label: string }) => {
   return (
@@ -108,32 +106,25 @@ export const TopologyExplorer = ({
 
       <div className="grid grid-cols-1 gap-5">
         {withList ? (
-          <div className="w-full rounded-xl border bg-card">
-            <PanelHeader label="Nodes" />
-            <div>
-              {mockNodes.map((n, i) => (
-                <div key={n.name}>
-                  {i > 0 ? <div className="border-t" /> : null}
-                  <button
-                    aria-pressed={n.name === selected}
-                    className={cn(
-                      "flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition-colors hover:bg-accent",
-                      n.name === selected && "bg-secondary",
-                    )}
-                    onClick={() => handleFocus(n.name)}
-                    type="button"
-                  >
-                    <span className="min-w-0">
-                      <span className="block truncate font-mono text-sm font-medium">{n.name}</span>
-                      <span className="block font-mono text-xs text-muted-foreground">
-                        {roleLabels[n.role]} · {n.address}
-                      </span>
-                    </span>
-                    <IdentityBadge state={n.identityState} />
-                  </button>
-                </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <label
+              className="font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground"
+              htmlFor="node-select"
+            >
+              Node
+            </label>
+            <select
+              className="min-w-[280px] rounded-lg border bg-card px-3 py-2 font-mono text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              id="node-select"
+              onChange={(e) => handleFocus(e.target.value)}
+              value={selected}
+            >
+              {mockNodes.map((n) => (
+                <option key={n.name} value={n.name}>
+                  {n.name} · {roleLabels[n.role]}
+                </option>
               ))}
-            </div>
+            </select>
           </div>
         ) : null}
 
