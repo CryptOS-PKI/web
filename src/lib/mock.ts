@@ -257,15 +257,6 @@ export const mockNodes: Node[] = [
   }),
 ];
 
-export const getNode = (name: string): Node | undefined => {
-  return mockNodes.find((node) => node.name === name);
-};
-
-/** Resolve a node by its subject common name. */
-export const getNodeByCn = (cn: string): Node | undefined => {
-  return mockNodes.find((node) => node.cn === cn);
-};
-
 export const roleLabels: Record<NodeRole, string> = {
   root: "Root CA",
   intermediate: "Intermediate CA",
@@ -289,7 +280,7 @@ export const trustEdges = (): TrustEdge[] => {
   const edges: TrustEdge[] = [];
   for (const child of mockNodes) {
     if (!child.parentCn) continue;
-    const parent = getNodeByCn(child.parentCn);
+    const parent = mockNodes.find((n) => n.cn === child.parentCn);
     if (parent) edges.push({ parent, child });
   }
   return edges;
