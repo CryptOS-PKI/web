@@ -36,6 +36,11 @@ const FOCUS_K = 1.15;
 // by F_COL; the focused node's children fan out to the right spaced by F_ROW.
 const F_COL = 210;
 const F_ROW = 88;
+// Spring dynamics for node motion — a floaty "2D space" settle (low stiffness,
+// heavy damping so there is momentum but it comes to rest without ringing).
+const SPRING_STIFF = 0.055;
+const SPRING_DAMP = 0.8;
+const OPACITY_EASE = 0.16;
 
 const stateStroke: Record<IdentityState, string> = {
   AWAITING_CERT: "hsl(var(--warning))",
@@ -55,12 +60,20 @@ interface Camera {
   ty: number;
 }
 
+interface Motion {
+  vx: number;
+  vy: number;
+  x: number;
+  y: number;
+}
+
 const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
 
 const prefersReducedMotion = (): boolean =>
   globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 
-// A smooth curve from one circle center to another, bending horizontally.
+// A smooth curve from one circle center to another, bending horizontally. Drawn
+// from live (animated) node centers so the connector flexes as the nodes move.
 const edgePath = (from: { x: number; y: number }, to: { x: number; y: number }): string => {
   const mx = from.x + (to.x - from.x) * 0.5;
   return `M${from.x},${from.y} C${mx},${from.y} ${mx},${to.y} ${to.x},${to.y}`;
@@ -100,21 +113,6 @@ export const FleetTopology = ({
     });
   };
 
-  // Depth of each node from the Root (0 = root). Drives the staged reveal order.
-  const depthOf = useMemo(() => {
-    const parentOf = new Map(layout.edges.map((e) => [e.to, e.from] as const));
-    const d: Record<string, number> = {};
-    const dep = (name: string): number => {
-      if (d[name] !== undefined) return d[name];
-      const p = parentOf.get(name);
-      const v = p ? dep(p) + 1 : 0;
-      d[name] = v;
-      return v;
-    };
-    for (const n of layout.nodes) dep(n.name);
-    return d;
-  }, [layout]);
-
   const fitCamera = useCallback((): Camera => {
     const { maxX, maxY, minX, minY } = layout.bounds;
     const w = Math.max(maxX - minX, 1);
@@ -133,64 +131,11 @@ export const FleetTopology = ({
   const svgRef = useRef<null | SVGSVGElement>(null);
   const drag = useRef<{ ox: number; oy: number; tx: number; ty: number } | null>(null);
 
-  // Staged reveal engine. `displayed` is the focus whose content is on screen
-  // (it lags `focus` so the old view can retract before the new one builds).
-  // `reveal` (0..1, driven by rAF) is the build-out front: forward on focus,
-  // backward on unfocus, giving connectors-draw-then-node-appears and its
-  // reverse. `pending`/`target` sequence exit -> swap -> enter.
-  const [displayed, setDisplayed] = useState<null | string>(focus);
-  const revealRef = useRef(1);
-  const targetRef = useRef(1);
-  const pendingRef = useRef<"none" | null | string>("none");
-  const rafRef = useRef<null | number>(null);
-  const mounted = useRef(false);
-  const [, rerender] = useReducer((x: number) => x + 1, 0);
+  const shownFocus = focus && layout.byName[focus] ? focus : null;
 
-  const animate = useCallback(() => {
-    const target = targetRef.current;
-    const next = revealRef.current + (target - revealRef.current) * 0.16;
-    if (Math.abs(next - target) < 0.008) {
-      revealRef.current = target;
-      if (target === 0 && pendingRef.current !== "none") {
-        setDisplayed(pendingRef.current === null ? null : (pendingRef.current as string));
-        pendingRef.current = "none";
-        targetRef.current = 1;
-        rafRef.current = requestAnimationFrame(animate);
-      } else {
-        rafRef.current = null;
-      }
-    } else {
-      revealRef.current = next;
-      rafRef.current = requestAnimationFrame(animate);
-    }
-    rerender();
-  }, []);
-
-  // On focus change: retract the current view (reveal -> 0), then swap to the
-  // new focus and build it out (reveal -> 1). First mount shows immediately.
-  useEffect(() => {
-    if (!mounted.current) {
-      mounted.current = true;
-      setDisplayed(focus);
-      return;
-    }
-    if (prefersReducedMotion()) {
-      setDisplayed(focus);
-      revealRef.current = 1;
-      rerender();
-      return;
-    }
-    pendingRef.current = focus;
-    targetRef.current = 0;
-    if (rafRef.current === null) rafRef.current = requestAnimationFrame(animate);
-  }, [focus, animate]);
-
-  useEffect(() => () => cancelAnimationFrame(rafRef.current ?? 0), []);
-
-  const shownFocus = displayed && layout.byName[displayed] ? displayed : null;
-
-  // Focus layout: ancestor chain on one straight horizontal line; the focused
-  // node's direct children fanned to the right. Overview keeps tree positions.
+  // Focus layout: the ancestor chain (Root -> ... -> focused) on ONE straight
+  // horizontal line, and (unless single-path) the focused node's children fanned
+  // to the right. Overview keeps the tidy-tree positions.
   const focusPos = useMemo<null | Record<string, { x: number; y: number }>>(() => {
     if (!shownFocus) return null;
     const parentOf = new Map(layout.edges.map((e) => [e.to, e.from] as const));
@@ -215,8 +160,8 @@ export const FleetTopology = ({
     return m;
   }, [shownFocus, layout, singlePath]);
 
-  // The nodes on screen: the focused node's lineage (ancestors + descendants),
-  // or the whole fleet in Overview.
+  // The nodes on screen: the focused node's lineage (ancestors + descendants, or
+  // ancestors only in single-path), or the whole fleet in Overview.
   const visible = useMemo<null | Set<string>>(() => {
     if (!shownFocus) return null;
     const kids = new Map<string, string[]>();
@@ -246,16 +191,101 @@ export const FleetTopology = ({
     return set;
   }, [shownFocus, layout, singlePath]);
 
-  const maxOrder = useMemo(() => {
-    let m = 0;
-    for (const p of layout.nodes) {
-      if (visible && !visible.has(p.name)) continue;
-      m = Math.max(m, depthOf[p.name] ?? 0);
-    }
-    return m;
-  }, [layout, visible, depthOf]);
+  const visOf = useCallback((name: string): boolean => !visible || visible.has(name), [visible]);
 
-  // Center the camera on the displayed focus (eased); Overview eases to Fit.
+  // Per-node targets (rest position + whether shown). Nodes spring toward these.
+  const targets = useMemo(() => {
+    const t = new Map<string, { vis: boolean; x: number; y: number }>();
+    for (const p of layout.nodes) {
+      const fp = focusPos?.[p.name];
+      t.set(p.name, { vis: visOf(p.name), x: fp?.x ?? p.x, y: fp?.y ?? p.y });
+    }
+    return t;
+  }, [layout, focusPos, visOf]);
+
+  // Spring state lives in refs (mutated each animation frame); a reducer bump
+  // re-renders so the svg reads the new positions/opacities.
+  const posRef = useRef(new Map<string, Motion>());
+  const opacityRef = useRef(new Map<string, number>());
+  const targetsRef = useRef(targets);
+  const rafRef = useRef<null | number>(null);
+  const mounted = useRef(false);
+  const [, rerender] = useReducer((x: number) => x + 1, 0);
+
+  const step = useCallback(() => {
+    const t = targetsRef.current;
+    let active = false;
+    for (const [name, target] of t) {
+      let p = posRef.current.get(name);
+      if (!p) {
+        p = { vx: 0, vy: 0, x: target.x, y: target.y };
+        posRef.current.set(name, p);
+      }
+      const ax = (target.x - p.x) * SPRING_STIFF - p.vx * SPRING_DAMP;
+      const ay = (target.y - p.y) * SPRING_STIFF - p.vy * SPRING_DAMP;
+      p.vx += ax;
+      p.vy += ay;
+      p.x += p.vx;
+      p.y += p.vy;
+      if (
+        Math.abs(target.x - p.x) > 0.4 ||
+        Math.abs(target.y - p.y) > 0.4 ||
+        Math.abs(p.vx) > 0.4 ||
+        Math.abs(p.vy) > 0.4
+      ) {
+        active = true;
+      } else {
+        p.x = target.x;
+        p.y = target.y;
+        p.vx = 0;
+        p.vy = 0;
+      }
+      const o = opacityRef.current.get(name) ?? 0;
+      const to = target.vis ? 1 : 0;
+      const no = o + (to - o) * OPACITY_EASE;
+      if (Math.abs(to - no) > 0.01) {
+        opacityRef.current.set(name, no);
+        active = true;
+      } else {
+        opacityRef.current.set(name, to);
+      }
+    }
+    rerender();
+    rafRef.current = active ? requestAnimationFrame(step) : null;
+  }, []);
+
+  // Whenever targets change (focus / collapse / layout), kick the spring. First
+  // mount and reduced-motion snap straight to rest.
+  useEffect(() => {
+    targetsRef.current = targets;
+    const snap = () => {
+      for (const [name, target] of targets) {
+        posRef.current.set(name, { vx: 0, vy: 0, x: target.x, y: target.y });
+        opacityRef.current.set(name, target.vis ? 1 : 0);
+      }
+      rerender();
+    };
+    if (!mounted.current) {
+      mounted.current = true;
+      snap();
+      return;
+    }
+    if (prefersReducedMotion()) {
+      snap();
+      return;
+    }
+    // New nodes (e.g. from expanding) start at their target and fade in.
+    for (const [name, target] of targets) {
+      if (!posRef.current.has(name))
+        posRef.current.set(name, { vx: 0, vy: 0, x: target.x, y: target.y });
+      if (!opacityRef.current.has(name)) opacityRef.current.set(name, 0);
+    }
+    if (rafRef.current === null) rafRef.current = requestAnimationFrame(step);
+  }, [targets, step]);
+
+  useEffect(() => () => cancelAnimationFrame(rafRef.current ?? 0), []);
+
+  // Center the camera on the focused node (eased); Overview eases to Fit.
   useEffect(() => {
     setEased(true);
     if (shownFocus && focusPos?.[shownFocus]) {
@@ -314,12 +344,9 @@ export const FleetTopology = ({
     });
   };
 
-  // Reveal front: how far the staged build-out has progressed, in depth units.
-  const front = revealRef.current * (maxOrder + 1);
-  const nodeReveal = (name: string): number => clamp(front - (depthOf[name] ?? 0), 0, 1);
-  // A connector draws just before its child node appears.
-  const edgeReveal = (childName: string): number =>
-    clamp(front - ((depthOf[childName] ?? 1) - 0.4), 0, 1);
+  const posOf = (name: string, fx: number, fy: number): { x: number; y: number } =>
+    posRef.current.get(name) ?? { x: fx, y: fy };
+  const opOf = (name: string): number => opacityRef.current.get(name) ?? (visOf(name) ? 1 : 0);
 
   return (
     <div className="relative">
@@ -352,25 +379,21 @@ export const FleetTopology = ({
           className={cn("topo-view", eased && "eased")}
           transform={`translate(${camera.tx},${camera.ty}) scale(${camera.k})`}
         >
-          {/* connectors: rail draws in (dashoffset), feeder fades in behind it */}
+          {/* connectors: rail + animated feeder, drawn from live node centers so
+              they flex as the nodes spring around */}
           {layout.edges.map((edge) => {
-            const from = layout.byName[edge.from];
-            const to = layout.byName[edge.to];
-            if (!from || !to) return null;
-            if (visible && !(visible.has(edge.from) && visible.has(edge.to))) return null;
-            const rev = edgeReveal(edge.to);
-            if (rev <= 0) return null;
-            const d = edgePath(focusPos?.[edge.from] ?? from, focusPos?.[edge.to] ?? to);
+            const base1 = layout.byName[edge.from];
+            const base2 = layout.byName[edge.to];
+            if (!base1 || !base2) return null;
+            const o = Math.min(opOf(edge.from), opOf(edge.to));
+            if (o < 0.02) return null;
+            const from = posOf(edge.from, base1.x, base1.y);
+            const to = posOf(edge.to, base2.x, base2.y);
+            const d = edgePath(from, to);
             return (
-              <g key={`${edge.from}->${edge.to}`}>
-                <path
-                  className="rail"
-                  d={d}
-                  pathLength={1}
-                  strokeDasharray={1}
-                  strokeDashoffset={1 - rev}
-                />
-                <path className={cn("feed", feedClass[edge.state])} d={d} opacity={rev} />
+              <g key={`${edge.from}->${edge.to}`} opacity={o}>
+                <path className="rail" d={d} />
+                <path className={cn("feed", feedClass[edge.state])} d={d} />
               </g>
             );
           })}
@@ -378,10 +401,9 @@ export const FleetTopology = ({
           {/* every CA as a circle; text lives in the node group, painted above
               the connectors (edges render first) */}
           {layout.nodes.map((p) => {
-            if (visible && !visible.has(p.name)) return null;
-            const op = nodeReveal(p.name);
-            if (op <= 0) return null;
-            const ep = focusPos?.[p.name] ?? { x: p.x, y: p.y };
+            const o = opOf(p.name);
+            if (o < 0.02) return null;
+            const pos = posOf(p.name, p.x, p.y);
             const isRoot = p.role === "root";
             const isSel = p.name === selected;
             const isFocused = p.name === shownFocus;
@@ -397,7 +419,7 @@ export const FleetTopology = ({
               <g
                 aria-label={`${p.cn} (${p.state})`}
                 aria-pressed={isSel}
-                className="topo-node cursor-pointer"
+                className="cursor-pointer"
                 data-node={p.name}
                 key={p.name}
                 onClick={() => onFocus(p.name)}
@@ -407,10 +429,10 @@ export const FleetTopology = ({
                     onFocus(p.name);
                   }
                 }}
-                opacity={op}
+                opacity={o}
                 role="button"
                 tabIndex={0}
-                transform={`translate(${ep.x},${ep.y})`}
+                transform={`translate(${pos.x},${pos.y})`}
               >
                 <circle
                   fill={circleFill}
