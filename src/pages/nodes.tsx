@@ -22,7 +22,7 @@ import { IdentityBadge } from "@/components/identity-badge";
 import { certsFor } from "@/lib/certs";
 import { mockNodes, roleLabels } from "@/lib/mock";
 
-// Operational nodes only — the Root CA has its own surface at /root.
+// Operational nodes only -- the Root CA has its own surface at /root.
 export const NodesPage = () => {
   const nodes = mockNodes.filter((n) => n.role !== "root");
 
@@ -57,7 +57,7 @@ export const NodesPage = () => {
                   <IdentityBadge state={n.identityState} />
                 </td>
                 <td className="px-4 py-2.5">{certsFor(n.name).length}</td>
-                <td className="px-4 py-2.5 text-right text-muted-foreground">{"›"}</td>
+                <td className="px-4 py-2.5 text-right text-muted-foreground">{"&#8250;"}</td>
               </tr>
             ))}
           </tbody>
