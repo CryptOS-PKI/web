@@ -60,8 +60,8 @@ export const NodeCertDetailPage = () => {
         <Row label="kind">{cert.kind}</Row>
         <Row label="not before">{cert.notBefore.slice(0, 10)}</Row>
         <Row label="not after">{cert.notAfter.slice(0, 10)}</Row>
-        <Row label="eku">{cert.eku.join(", ") || "—"}</Row>
-        <Row label="sans">{cert.sans.join(", ") || "—"}</Row>
+        <Row label="eku">{cert.eku.join(", ") || "\u2014"}</Row>
+        <Row label="sans">{cert.sans.join(", ") || "\u2014"}</Row>
         {cert.pathLen === undefined ? null : <Row label="path len">{cert.pathLen}</Row>}
         {cert.reason ? <Row label="revocation reason">{cert.reason}</Row> : null}
       </div>
