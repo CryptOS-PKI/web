@@ -20,7 +20,8 @@ import { useEffect, useState } from "react";
 
 import { FleetTopology } from "@/components/fleet-topology";
 import { NodeDetailPanel } from "@/components/node-detail-panel";
-import { getNode, mockNodes, roleLabels } from "@/lib/mock";
+import { NodeSelect } from "@/components/node-select";
+import { getNode, mockNodes } from "@/lib/mock";
 
 const PanelHeader = ({ children, label }: { children?: React.ReactNode; label: string }) => {
   return (
@@ -107,24 +108,10 @@ export const TopologyExplorer = ({
       <div className="grid grid-cols-1 gap-5">
         {withList ? (
           <div className="flex flex-wrap items-center gap-3">
-            <label
-              className="font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground"
-              htmlFor="node-select"
-            >
+            <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
               Node
-            </label>
-            <select
-              className="min-w-[280px] rounded-lg border bg-card px-3 py-2 font-mono text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-              id="node-select"
-              onChange={(e) => handleFocus(e.target.value)}
-              value={selected}
-            >
-              {mockNodes.map((n) => (
-                <option key={n.name} value={n.name}>
-                  {n.name} · {roleLabels[n.role]}
-                </option>
-              ))}
-            </select>
+            </span>
+            <NodeSelect onSelect={handleFocus} selected={selected} />
           </div>
         ) : null}
 
