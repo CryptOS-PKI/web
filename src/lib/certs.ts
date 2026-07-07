@@ -18,7 +18,7 @@ limitations under the License.
 
 import { useSyncExternalStore } from "react";
 
-import { getNode, mockNodes, type Node } from "@/lib/mock";
+import { mockNodes, type Node } from "@/lib/mock";
 
 export type CertKind = "leaf" | "subordinate-ca";
 export type CertStatus = "EXPIRED" | "REVOKED" | "VALID";
