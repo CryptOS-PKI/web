@@ -127,7 +127,8 @@ const reindex = (): void => {
 };
 reindex();
 
-export const certsFor = (nodeName: string): Cert[] => byNode.get(nodeName) ?? [];
+const EMPTY: Cert[] = [];
+export const certsFor = (nodeName: string): Cert[] => byNode.get(nodeName) ?? EMPTY;
 export const getCert = (serial: string): Cert | undefined => certs.find((c) => c.serial === serial);
 
 export const useCerts = (nodeName: string): Cert[] =>
