@@ -44,8 +44,8 @@ describe("computeTreeLayout", () => {
   it("collapsing a node hides its subtree and re-packs the tree", () => {
     const full = computeTreeLayout(mockNodes);
     const collapsed = computeTreeLayout(mockNodes, new Set(["acme-intermediate-01"]));
-    // Intermediate G1 has 12 issuing children, all removed from the layout.
-    expect(collapsed.nodes).toHaveLength(full.nodes.length - 12);
+    // Intermediate G1 has 3 issuing children, all removed from the layout.
+    expect(collapsed.nodes).toHaveLength(full.nodes.length - 3);
     expect(collapsed.byName["acme-intermediate-01"].collapsed).toBe(true);
     expect(collapsed.byName["acme-issuing-01"]).toBeUndefined();
     expect(collapsed.edges.some((e) => e.to === "acme-issuing-01")).toBe(false);
