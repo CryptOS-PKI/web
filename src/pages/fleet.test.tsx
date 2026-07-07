@@ -20,100 +20,51 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 
-import { childrenOf, groupThreshold, mockNodes } from "@/lib/mock";
 import { FleetPage } from "@/pages/fleet";
+import { NodesPage } from "@/pages/nodes";
 
-const renderFleet = () => {
-  return render(
-    <MemoryRouter>
-      <FleetPage />
-    </MemoryRouter>,
-  );
-};
-
-// Nodes drawn as individual circles: roots, intermediates, and the small G3
-// issuing fan-out (<= groupThreshold). Wide fan-outs (G1, G2) collapse to boxes.
-const circleNodes = mockNodes.filter(
-  (n) => n.role !== "issuing" || n.parentCn === "ACME Intermediate CA G3",
-);
+const renderPage = (ui: React.ReactElement) => render(<MemoryRouter>{ui}</MemoryRouter>);
 
 describe("FleetPage", () => {
-  it("renders the topology graph with every individually-drawn CA subject CN", () => {
-    renderFleet();
+  it("renders the topology graph with the Root on screen", () => {
+    renderPage(<FleetPage />);
     expect(screen.getByRole("img", { name: /CA fleet topology graph/i })).toBeInTheDocument();
-    for (const node of circleNodes) {
-      expect(screen.getAllByText(node.cn).length).toBeGreaterThan(0);
-    }
-  });
-
-  it("collapses a wide fan-out into a group box instead of circles", () => {
-    renderFleet();
-    const parentCn = "ACME Intermediate CA G1";
-    const members = childrenOf(parentCn);
-    expect(members.length).toBeGreaterThan(groupThreshold);
-
-    // The group header shows title, subtitle, and the member count; the member
-    // CNs are hidden until the group is expanded. Both G1 and G2 collapse to
-    // group boxes, so "Issuing CAs" appears twice — use getAllByText.
-    expect(screen.getAllByText("Issuing CAs")).toHaveLength(2);
-    expect(screen.getByText(`under ${parentCn}`)).toBeInTheDocument();
-    expect(screen.getByText(String(members.length))).toBeInTheDocument();
-    expect(screen.queryByText(members[0].cn)).not.toBeInTheDocument();
-  });
-
-  it("expands the group to reveal members and selects one into the detail panel", () => {
-    renderFleet();
-    const members = childrenOf("ACME Intermediate CA G1");
-
-    // Two group buttons exist (G1 and G2); target the G1 one by its subtitle.
-    const g1Subtitle = screen.getByText("under ACME Intermediate CA G1");
-    fireEvent.click(g1Subtitle.closest("button")!);
-    for (const m of members) {
-      expect(screen.getByText(m.cn)).toBeInTheDocument();
-    }
-
-    fireEvent.click(screen.getByText(members[0].cn));
-    expect(screen.getByText(`Node · ${members[0].name}`)).toBeInTheDocument();
-  });
-
-  it("shows the default selected node's detail panel", () => {
-    renderFleet();
-    // The default selection is the established intermediate.
-    expect(screen.getByText(/Node · acme-intermediate-01/)).toBeInTheDocument();
-    expect(screen.getByText("142 / 4")).toBeInTheDocument();
-  });
-});
-
-describe("FleetPage focus view", () => {
-  it("enters focus and pins the Root when a circle is clicked", () => {
-    renderFleet();
-    // Click the intermediate G1 circle (its CN label is the accessible text).
-    fireEvent.click(screen.getAllByText("ACME Intermediate CA G1")[0]);
-    // Overview control appears only in focus mode.
-    expect(screen.getByRole("button", { name: /overview/i })).toBeInTheDocument();
-    // Root is still on screen.
     expect(screen.getAllByText("ACME Root CA G1").length).toBeGreaterThan(0);
   });
 
-  it("updates the detail panel to the focused node (focus == select)", () => {
-    renderFleet();
-    fireEvent.click(screen.getAllByText("ACME Intermediate CA G1")[0]);
+  it("shows the default selected node's detail panel", () => {
+    renderPage(<FleetPage />);
     expect(screen.getByText(/Node · acme-intermediate-01/)).toBeInTheDocument();
+    expect(screen.getByText("142 / 4")).toBeInTheDocument();
+  });
+
+  it("focuses+selects a node on click and reveals the Overview control", () => {
+    renderPage(<FleetPage />);
+    fireEvent.click(screen.getByRole("button", { name: /ACME Issuing CA G01/i }));
+    expect(screen.getByText(/Node · acme-issuing-01/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /overview/i })).toBeInTheDocument();
   });
 
   it("returns to the overview on Escape", () => {
-    renderFleet();
-    fireEvent.click(screen.getAllByText("ACME Intermediate CA G1")[0]);
+    renderPage(<FleetPage />);
+    fireEvent.click(screen.getByRole("button", { name: /ACME Issuing CA G01/i }));
     expect(screen.getByRole("button", { name: /overview/i })).toBeInTheDocument();
     fireEvent.keyDown(globalThis.document.body, { key: "Escape" });
     expect(screen.queryByRole("button", { name: /overview/i })).not.toBeInTheDocument();
   });
 
-  it("refocuses onto a branch when its chip is clicked", () => {
-    renderFleet();
-    // Focus G1 -> chips include the G3 branch. Click it -> focus moves to G3.
-    fireEvent.click(screen.getAllByText("ACME Intermediate CA G1")[0]);
-    fireEvent.click(screen.getByRole("button", { name: /ACME Intermediate CA G3/i }));
-    expect(screen.getByText(/Node · acme-intermediate-03/)).toBeInTheDocument();
+  it("always renders the CRL and OCSP fields (fixed panel, em-dash when absent)", () => {
+    renderPage(<FleetPage />);
+    // Default selection (intermediate G1) is established and has endpoints.
+    expect(screen.getByText("crl")).toBeInTheDocument();
+    expect(screen.getByText("ocsp")).toBeInTheDocument();
+  });
+});
+
+describe("NodesPage", () => {
+  it("renders the single-path topology treatment", () => {
+    renderPage(<NodesPage />);
+    expect(screen.getByRole("img", { name: /CA fleet topology graph/i })).toBeInTheDocument();
+    expect(screen.getByText(/trace its path to the Root/i)).toBeInTheDocument();
   });
 });

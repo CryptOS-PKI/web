@@ -19,68 +19,41 @@ limitations under the License.
 import { describe, expect, it } from "vitest";
 
 import { mockNodes } from "@/lib/mock";
-import { computeFocusLayout } from "@/lib/topology-layout";
+import { computeTreeLayout } from "@/lib/topology-layout";
 
-describe("computeFocusLayout", () => {
-  it("puts the Root first on the spine and the focus last", () => {
-    const l = computeFocusLayout("acme-issuing-01", mockNodes);
-    expect(l.spine[0].cn).toBe("ACME Root CA G1");
-    expect(l.spine.at(-1)).toBe(l.focus);
-    expect(l.focus.name).toBe("acme-issuing-01");
-    expect(l.spine.map((p) => p.cn)).toEqual([
-      "ACME Root CA G1",
-      "ACME Intermediate CA G1",
-      "ACME Issuing CA G01",
-    ]);
+describe("computeTreeLayout", () => {
+  it("places every node and links every parent->child edge", () => {
+    const l = computeTreeLayout(mockNodes);
+    expect(l.nodes).toHaveLength(mockNodes.length);
+    expect(l.edges).toHaveLength(mockNodes.filter((n) => n.parentCn).length);
+    expect(l.byName["acme-root-01"].role).toBe("root");
   });
 
-  it("fans an intermediate's wide child set into a group downstream", () => {
-    const l = computeFocusLayout("acme-intermediate-01", mockNodes);
-    expect(l.downstream.kind).toBe("group");
-    if (l.downstream.kind === "group") {
-      expect(l.downstream.members).toHaveLength(12);
-    }
+  it("puts the Root at the leftmost depth column", () => {
+    const l = computeTreeLayout(mockNodes);
+    const minX = Math.min(...l.nodes.map((p) => p.x));
+    expect(l.byName["acme-root-01"].x).toBe(minX);
   });
 
-  it("renders an issuing CA's downstream as a leaf count", () => {
-    const l = computeFocusLayout("acme-issuing-01", mockNodes);
-    expect(l.downstream.kind).toBe("leaves");
-    if (l.downstream.kind === "leaves") {
-      expect(l.downstream.count).toBe(60);
-    }
+  it("marks parents as expandable and leaves as not", () => {
+    const l = computeTreeLayout(mockNodes);
+    expect(l.byName["acme-intermediate-01"].hasChildren).toBe(true);
+    expect(l.byName["acme-issuing-01"].hasChildren).toBe(false);
   });
 
-  it("draws a small child set as individual nodes", () => {
-    const l = computeFocusLayout("acme-intermediate-03", mockNodes);
-    expect(l.downstream.kind).toBe("nodes");
-    if (l.downstream.kind === "nodes") {
-      expect(l.downstream.nodes).toHaveLength(3);
-    }
+  it("collapsing a node hides its subtree and re-packs the tree", () => {
+    const full = computeTreeLayout(mockNodes);
+    const collapsed = computeTreeLayout(mockNodes, new Set(["acme-intermediate-01"]));
+    // Intermediate G1 has 12 issuing children, all removed from the layout.
+    expect(collapsed.nodes).toHaveLength(full.nodes.length - 12);
+    expect(collapsed.byName["acme-intermediate-01"].collapsed).toBe(true);
+    expect(collapsed.byName["acme-issuing-01"]).toBeUndefined();
+    expect(collapsed.edges.some((e) => e.to === "acme-issuing-01")).toBe(false);
   });
 
-  it("collapses a wide sibling set into one aggregated chip", () => {
-    const l = computeFocusLayout("acme-issuing-01", mockNodes);
-    const sib = l.chips.find((c) => c.refocus.startsWith("acme-issuing-"));
-    expect(sib?.count).toBe(11);
-    expect(sib?.label).toContain("sibling");
-  });
-
-  it("lists a small off-path branch set as one chip per branch", () => {
-    const l = computeFocusLayout("acme-intermediate-01", mockNodes);
-    const labels = l.chips.map((c) => c.label).sort();
-    expect(labels).toContain("ACME Intermediate CA G2");
-    expect(labels).toContain("ACME Intermediate CA G3");
-  });
-
-  it("gives a Root focus no off-path chips", () => {
-    const l = computeFocusLayout("acme-root-01", mockNodes);
-    expect(l.chips).toHaveLength(0);
-    expect(l.spine).toHaveLength(1);
-  });
-
-  it("colors a fully-revoked branch chip as REVOKED", () => {
-    const l = computeFocusLayout("acme-intermediate-01", mockNodes);
-    const g2 = l.chips.find((c) => c.label === "ACME Intermediate CA G2");
-    expect(g2?.state).toBe("REVOKED");
+  it("keeps a positive bounding box", () => {
+    const { bounds } = computeTreeLayout(mockNodes);
+    expect(bounds.maxX).toBeGreaterThan(bounds.minX);
+    expect(bounds.maxY).toBeGreaterThan(bounds.minY);
   });
 });

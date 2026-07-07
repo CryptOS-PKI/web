@@ -16,20 +16,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import {
-  aggregateState,
-  childrenOf,
-  getNode,
-  getNodeByCn,
-  groupThreshold,
-  type IdentityState,
-  type Node,
-  type NodeRole,
-} from "@/lib/mock";
+import { childrenOf, type IdentityState, type Node, type NodeRole } from "@/lib/mock";
 
-/** A node placed at SVG coordinates for the focus view (viewBox 0 0 720 520). */
+// A tidy left-to-right tree layout for the whole CA fleet. Every CA is a circle;
+// the pan/zoom canvas handles scale and a node's subtree can be collapsed. Depth
+// sets the column (Root -> intermediates -> issuing), and each subtree is given a
+// vertical band so siblings never overlap. Coordinates are in an abstract graph
+// space; the view fits/pans/zooms over the computed bounds.
+
+/** A CA placed at graph-space coordinates. */
 export interface Placed {
   cn: string;
+  collapsed: boolean;
+  hasChildren: boolean;
+  issued: number;
   name: string;
   r: number;
   role: NodeRole;
@@ -38,137 +38,118 @@ export interface Placed {
   y: number;
 }
 
-/** An off-path branch, rendered as a clickable chip below the spine. */
-export interface Chip {
-  count: number;
-  key: string;
-  label: string;
-  refocus: string;
+/** A parent -> child trust edge, keyed by node name, colored by the child state. */
+export interface Edge {
+  from: string;
   state: IdentityState;
+  to: string;
 }
 
-/** A collapsed group box hanging off the focus. */
-export interface GroupBox {
-  anchorY: number;
-  width: number;
-  x: number;
-  y: number;
+/** Bounding box of all placed nodes (before padding). */
+export interface Bounds {
+  maxX: number;
+  maxY: number;
+  minX: number;
+  minY: number;
 }
 
-/** What renders to the right of the focus. */
-export type Downstream =
-  | { box: GroupBox; kind: "group"; members: Node[]; parent: Node }
-  | { count: number; kind: "leaves"; x: number; y: number }
-  | { kind: "nodes"; nodes: Placed[] };
-
-export interface FocusLayout {
-  chips: Chip[];
-  downstream: Downstream;
-  focus: Placed;
-  spine: Placed[];
+export interface TreeLayout {
+  bounds: Bounds;
+  byName: Record<string, Placed>;
+  edges: Edge[];
+  nodes: Placed[];
 }
 
-const ROOT_X = 90;
-const SPINE_Y = 200;
-const SPINE_STEP = 170;
-const DS_X_GAP = 150;
+const COL = 260;
+const ROW = 92;
+const ROOT_R = 34;
+const NODE_R = 27;
 
-const placedFrom = (node: Node, x: number, y: number, r: number): Placed => ({
-  cn: node.cn,
-  name: node.name,
-  r,
-  role: node.role,
-  state: node.identityState,
-  x,
-  y,
-});
+// Radius is consistent so a small issued count (18) reads the same as a large one
+// (142); only the Root is a touch larger as the anchor.
+const radiusFor = (role: NodeRole): number => (role === "root" ? ROOT_R : NODE_R);
 
-// Walk parentCn up to the root, returning [root, ..., focus].
-const spineOf = (focus: Node): Node[] => {
-  const chain: Node[] = [focus];
-  let cursor = focus;
-  while (cursor.parentCn) {
-    const parent = getNodeByCn(cursor.parentCn);
-    if (!parent) break;
-    chain.unshift(parent);
-    cursor = parent;
+export const computeTreeLayout = (
+  nodes: Node[],
+  collapsed: Set<string> = new Set(),
+): TreeLayout => {
+  // Descendants of a collapsed node are hidden and excluded from the layout, so
+  // the tree re-packs tightly around what remains.
+  const hidden = new Set<string>();
+  const markHidden = (cn: string): void => {
+    for (const c of childrenOf(cn)) {
+      hidden.add(c.name);
+      markHidden(c.cn);
+    }
+  };
+  for (const name of collapsed) {
+    const node = nodes.find((n) => n.name === name);
+    if (node) markHidden(node.cn);
   }
-  return chain;
-};
+  const shown = nodes.filter((n) => !hidden.has(n.name));
 
-const roleWordPlural = (role: NodeRole): string => {
-  if (role === "issuing") return "Issuing CAs";
-  if (role === "intermediate") return "Intermediate CAs";
-  return "CAs";
-};
+  // Effective children: a collapsed node lays out as a leaf.
+  const kidsOf = (node: Node): Node[] =>
+    collapsed.has(node.name) ? [] : childrenOf(node.cn).filter((c) => !hidden.has(c.name));
 
-// One off-path set becomes either a single aggregated chip (wide/homogeneous)
-// or one chip per branch (few, distinct branches like sibling intermediates).
-const chipsForOffPath = (offPath: Node[]): Chip[] => {
-  if (offPath.length === 0) return [];
-  if (offPath.length > groupThreshold) {
-    return [
-      {
-        count: offPath.length,
-        key: `sib-${offPath[0].name}`,
-        label: `${offPath.length} sibling ${roleWordPlural(offPath[0].role)}`,
-        refocus: offPath[0].name,
-        state: aggregateState(offPath),
-      },
-    ];
-  }
-  return offPath.map((branch) => {
-    const subtree = [branch, ...childrenOf(branch.cn)];
-    return {
-      count: childrenOf(branch.cn).length,
-      key: `br-${branch.name}`,
-      label: branch.cn,
-      refocus: branch.name,
-      state: aggregateState(subtree),
-    };
-  });
-};
+  const roots = shown.filter((n) => !n.parentCn);
+  const yByName = new Map<string, number>();
+  let leafCursor = 0;
 
-// Internal helpers read the fleet from the module-level mockNodes via @/lib/mock.
-// `nodes` is the injection seam for a future live-data provider; today it is used
-// only as the unknown-focus fallback (nodes[0]) when focusName is not found.
-export const computeFocusLayout = (focusName: string, nodes: Node[]): FocusLayout => {
-  const focusNode = getNode(focusName) ?? nodes[0];
-  const chain = spineOf(focusNode);
+  // Post-order: a leaf takes the next row; a parent centers on its children.
+  const assignY = (node: Node): number => {
+    const kids = kidsOf(node);
+    let y: number;
+    if (kids.length === 0) {
+      y = leafCursor * ROW;
+      leafCursor += 1;
+    } else {
+      const kidYs = kids.map((k) => assignY(k));
+      y = kidYs.reduce((a, b) => a + b, 0) / kidYs.length;
+    }
+    yByName.set(node.name, y);
+    return y;
+  };
+  for (const r of roots) assignY(r);
 
-  const spine = chain.map((n, i) => {
-    const isRoot = i === 0;
-    const isFocus = i === chain.length - 1;
-    const x = isRoot ? ROOT_X : ROOT_X + i * SPINE_STEP;
-    const r = isFocus ? 34 : isRoot ? 30 : 24;
-    return placedFrom(n, x, SPINE_Y, r);
-  });
-  const focus = spine[spine.length - 1];
+  const depthByName = new Map<string, number>();
+  const setDepth = (node: Node, depth: number): void => {
+    depthByName.set(node.name, depth);
+    for (const k of kidsOf(node)) setDepth(k, depth + 1);
+  };
+  for (const r of roots) setDepth(r, 0);
 
-  const kids = childrenOf(focusNode.cn);
-  let downstream: Downstream;
-  if (focusNode.role === "issuing" || kids.length === 0) {
-    downstream = { count: focusNode.issued, kind: "leaves", x: focus.x + 80, y: SPINE_Y };
-  } else if (kids.length > groupThreshold) {
-    downstream = {
-      box: { anchorY: SPINE_Y, width: 210, x: focus.x + 100, y: SPINE_Y - 90 },
-      kind: "group",
-      members: kids,
-      parent: focusNode,
-    };
-  } else {
-    const dsX = focus.x + DS_X_GAP;
-    const spread = (kids.length - 1) * 66;
-    const dsNodes = kids.map((k, i) => placedFrom(k, dsX, SPINE_Y - spread / 2 + i * 66, 22));
-    downstream = { kind: "nodes", nodes: dsNodes };
+  const placed: Placed[] = shown.map((n) => ({
+    cn: n.cn,
+    collapsed: collapsed.has(n.name),
+    hasChildren: childrenOf(n.cn).length > 0,
+    issued: n.issued,
+    name: n.name,
+    r: radiusFor(n.role),
+    role: n.role,
+    state: n.identityState,
+    x: (depthByName.get(n.name) ?? 0) * COL,
+    y: yByName.get(n.name) ?? 0,
+  }));
+
+  const byName: Record<string, Placed> = {};
+  for (const p of placed) byName[p.name] = p;
+
+  const edges: Edge[] = [];
+  for (const n of shown) {
+    if (!n.parentCn) continue;
+    const parent = shown.find((p) => p.cn === n.parentCn);
+    if (parent) edges.push({ from: parent.name, state: n.identityState, to: n.name });
   }
 
-  const spineNames = new Set(chain.map((n) => n.name));
-  const chips: Chip[] = [];
-  for (let i = 0; i < chain.length - 1; i++) {
-    const offPath = childrenOf(chain[i].cn).filter((c) => !spineNames.has(c.name));
-    chips.push(...chipsForOffPath(offPath));
-  }
+  const xs = placed.map((p) => p.x);
+  const ys = placed.map((p) => p.y);
+  const bounds: Bounds = {
+    maxX: Math.max(...xs) + NODE_R,
+    maxY: Math.max(...ys) + NODE_R,
+    minX: Math.min(...xs) - NODE_R,
+    minY: Math.min(...ys) - NODE_R,
+  };
 
-  return { chips, downstream, focus, spine };
+  return { bounds, byName, edges, nodes: placed };
 };

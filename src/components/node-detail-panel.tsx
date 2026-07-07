@@ -21,23 +21,32 @@ import { Link } from "react-router-dom";
 import { IdentityBadge } from "@/components/identity-badge";
 import { Button } from "@/components/ui/button";
 import { type Node, roleLabels } from "@/lib/mock";
+import { cn } from "@/lib/utils";
 
-// A single labeled field cell in the detail grid.
+// A single labeled field cell in the detail grid. `wide` spans two columns so a
+// long value (CRL/OCSP URL) fills the full row width beneath the other fields.
 const Field = ({
   children,
   label,
   mono = true,
+  wide = false,
 }: {
   children: React.ReactNode;
   label: string;
   mono?: boolean;
+  wide?: boolean;
 }) => {
   return (
-    <div className="flex flex-col items-start gap-1 rounded-lg border bg-secondary px-3 py-2.5">
+    <div
+      className={cn(
+        "flex flex-col items-start gap-1 rounded-lg border bg-secondary px-3 py-2.5",
+        wide && "col-span-2",
+      )}
+    >
       <span className="font-mono text-[10.5px] uppercase tracking-wider text-muted-foreground">
         {label}
       </span>
-      <span className={mono ? "font-mono text-xs" : "text-sm"}>{children}</span>
+      <span className={cn("break-all", mono ? "font-mono text-xs" : "text-sm")}>{children}</span>
     </div>
   );
 };
@@ -49,9 +58,12 @@ const fleetManagerText = (node: Node): string => {
   return "LINKED";
 };
 
+// The em-dash placeholder keeps a field's cell in place when a node lacks that
+// property, so the panel never changes shape between nodes.
+const DASH = "—";
+
 export const NodeDetailPanel = ({ node }: { node: Node }) => {
   const established = node.identityState === "ESTABLISHED";
-  const hasEndpoints = Boolean(node.crl && node.ocsp);
 
   return (
     <div className="p-4">
@@ -60,7 +72,9 @@ export const NodeDetailPanel = ({ node }: { node: Node }) => {
         {node.address} · {roleLabels[node.role]}
       </div>
 
-      <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(210px,1fr))] gap-3">
+      {/* Fixed field set in a fixed grid — every property always renders in the
+          same cell (em-dash when absent), so nothing shifts between nodes. */}
+      <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
         <Field label="identity" mono={false}>
           <IdentityBadge state={node.identityState} />
         </Field>
@@ -73,16 +87,12 @@ export const NodeDetailPanel = ({ node }: { node: Node }) => {
         <Field label="fleet manager">{fleetManagerText(node)}</Field>
         <Field label="boot count">{node.bootCount}</Field>
         <Field label="uptime">{node.uptime}</Field>
-        {hasEndpoints ? (
-          <>
-            <Field label="crl">
-              <span className="text-primary">{node.crl}</span>
-            </Field>
-            <Field label="ocsp">
-              <span className="text-primary">{node.ocsp}</span>
-            </Field>
-          </>
-        ) : null}
+        <Field label="crl" wide>
+          {node.crl ? <span className="text-primary">{node.crl}</span> : DASH}
+        </Field>
+        <Field label="ocsp" wide>
+          {node.ocsp ? <span className="text-primary">{node.ocsp}</span> : DASH}
+        </Field>
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">

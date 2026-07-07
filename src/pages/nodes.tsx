@@ -16,41 +16,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import { Link } from "react-router-dom";
+import { TopologyExplorer } from "@/components/topology-explorer";
 
-import { IdentityBadge } from "@/components/identity-badge";
-import { Card, CardContent } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { mockNodes, roleLabels } from "@/lib/mock";
-
+// Same topology treatment as the Fleet page, but focusing a node shows only its
+// single path back to the Root (no descendant fan).
 export const NodesPage = () => {
-  return (
-    <section className="space-y-6">
-      <div className="space-y-1">
-        <h1 className="font-mono text-2xl font-bold tracking-tight">Nodes</h1>
-        <p className="text-sm text-muted-foreground">Every linked node and its identity state.</p>
-      </div>
-      <Card>
-        <CardContent className="p-0">
-          {mockNodes.map((node, index) => (
-            <div key={node.name}>
-              {index > 0 ? <Separator /> : null}
-              <Link
-                className="flex items-center justify-between gap-4 px-6 py-4 transition-colors hover:bg-accent"
-                to={`/nodes/${node.name}`}
-              >
-                <div className="min-w-0">
-                  <div className="truncate font-mono text-sm font-medium">{node.name}</div>
-                  <div className="font-mono text-xs text-muted-foreground">
-                    {roleLabels[node.role]} &middot; {node.address}
-                  </div>
-                </div>
-                <IdentityBadge state={node.identityState} />
-              </Link>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-    </section>
-  );
+  return <TopologyExplorer singlePath title="Nodes" />;
 };

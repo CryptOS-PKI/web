@@ -160,6 +160,47 @@ limitations under the License.
     cursor: help;
   }
 
+  /* Pan/zoom topology canvas. The whole graph lives in one transformed group so
+     nodes and their connectors move together (connectors stay attached). Direct
+     dragging/zooming is immediate; programmatic moves (Fit, center-on-focus) get
+     the eased transition for a smooth "glide", never a jerk. */
+  .topo-canvas {
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    display: block;
+    width: 100%;
+    /* Fix the display box to the viewBox aspect and clip, so the camera
+       (fit/pan/zoom) is the sole framing mechanism — the graph can be taller
+       than the box without spilling down the page. */
+    aspect-ratio: 960 / 600;
+    overflow: hidden;
+    border-bottom-left-radius: 0.75rem;
+    border-bottom-right-radius: 0.75rem;
+  }
+  .topo-canvas.dragging {
+    cursor: grabbing;
+  }
+  .topo-view.eased {
+    transition: transform 560ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+  .topo-node {
+    transition:
+      transform 560ms cubic-bezier(0.22, 0.61, 0.36, 1),
+      opacity 320ms ease;
+  }
+  .topo-node.dim {
+    opacity: 0.35;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .topo-view.eased {
+      transition: none;
+    }
+    .topo-node {
+      transition: none;
+    }
+  }
+
   /* Collapsed group box (foreignObject) that stands in for a wide fan-out of
      child CAs. Header toggles a scrollable member list. Colors reuse the theme
      tokens so the box tracks light/dark and palette edits. */
