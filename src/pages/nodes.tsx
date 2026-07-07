@@ -57,7 +57,7 @@ export const NodesPage = () => {
                   <IdentityBadge state={n.identityState} />
                 </td>
                 <td className="px-4 py-2.5">{certsFor(n.name).length}</td>
-                <td className="px-4 py-2.5 text-right text-muted-foreground">{"&#8250;"}</td>
+                <td className="px-4 py-2.5 text-right text-muted-foreground">{"›"}</td>
               </tr>
             ))}
           </tbody>
