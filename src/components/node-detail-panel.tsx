@@ -20,6 +20,7 @@ import { Link } from "react-router-dom";
 
 import { IdentityBadge } from "@/components/identity-badge";
 import { Button } from "@/components/ui/button";
+import { canIssue } from "@/lib/certs";
 import { type Node, roleLabels } from "@/lib/mock";
 import { cn } from "@/lib/utils";
 
@@ -63,8 +64,6 @@ const fleetManagerText = (node: Node): string => {
 const DASH = "—";
 
 export const NodeDetailPanel = ({ node }: { node: Node }) => {
-  const established = node.identityState === "ESTABLISHED";
-
   return (
     <div className="p-4">
       <div className="text-lg font-bold">{node.name}</div>
@@ -96,9 +95,11 @@ export const NodeDetailPanel = ({ node }: { node: Node }) => {
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
-        <Button disabled={!established} size="sm">
-          Issue leaf
-        </Button>
+        {canIssue(node).length > 0 ? (
+          <Button asChild size="sm">
+            <Link to={`/nodes/${node.name}/issue`}>{"Issue\u2026"}</Link>
+          </Button>
+        ) : null}
         <Button asChild size="sm" variant="outline">
           <Link to={`/nodes/${node.name}`}>View chain</Link>
         </Button>
@@ -106,7 +107,7 @@ export const NodeDetailPanel = ({ node }: { node: Node }) => {
           Revocations
         </Button>
         <Button disabled={node.identityState === "REVOKED"} size="sm" variant="destructive">
-          Revoke…
+          {"Revoke\u2026"}
         </Button>
       </div>
     </div>
