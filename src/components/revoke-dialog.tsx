@@ -52,12 +52,16 @@ export const RevokeDialog = ({
       role="presentation"
     >
       <div
+        aria-labelledby="revoke-dialog-title"
+        aria-modal="true"
         className="w-full max-w-sm space-y-4 rounded-xl border bg-card p-5 shadow-xl"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
       >
         <div className="space-y-1">
-          <h2 className="text-lg font-bold">Revoke certificate</h2>
+          <h2 className="text-lg font-bold" id="revoke-dialog-title">
+            Revoke certificate
+          </h2>
           <p className="font-mono text-xs text-muted-foreground">
             {subjectCn} &middot; {serial}
           </p>
