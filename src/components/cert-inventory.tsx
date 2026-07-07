@@ -19,6 +19,7 @@ limitations under the License.
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
+import { RevokeDialog } from "@/components/revoke-dialog";
 import { type CertStatus, useCerts } from "@/lib/certs";
 import { cn } from "@/lib/utils";
 
@@ -34,6 +35,7 @@ const filters: Filter[] = ["ALL", "VALID", "EXPIRED", "REVOKED"];
 export const CertInventory = ({ nodeName }: { nodeName: string }) => {
   const certs = useCerts(nodeName);
   const [filter, setFilter] = useState<Filter>("ALL");
+  const [revoking, setRevoking] = useState<{ serial: string; subjectCn: string } | null>(null);
   const rows = filter === "ALL" ? certs : certs.filter((c) => c.status === filter);
 
   return (
@@ -68,6 +70,7 @@ export const CertInventory = ({ nodeName }: { nodeName: string }) => {
                 <th className="px-3 py-2">Kind</th>
                 <th className="px-3 py-2">Expires</th>
                 <th className="px-3 py-2">Status</th>
+                <th className="px-3 py-2" />
               </tr>
             </thead>
             <tbody>
@@ -87,12 +90,30 @@ export const CertInventory = ({ nodeName }: { nodeName: string }) => {
                   <td className={cn("px-3 py-2 font-semibold", statusTone[c.status])}>
                     {c.status}
                   </td>
+                  <td className="px-3 py-2">
+                    {c.status === "REVOKED" ? null : (
+                      <button
+                        className="text-destructive hover:underline"
+                        onClick={() => setRevoking({ serial: c.serial, subjectCn: c.subjectCn })}
+                        type="button"
+                      >
+                        Revoke
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       )}
+      {revoking ? (
+        <RevokeDialog
+          onClose={() => setRevoking(null)}
+          serial={revoking.serial}
+          subjectCn={revoking.subjectCn}
+        />
+      ) : null}
     </div>
   );
 };
