@@ -18,6 +18,7 @@ limitations under the License.
 
 import { Link, useParams } from "react-router-dom";
 
+import { CertInventory } from "@/components/cert-inventory";
 import { NodeDetailPanel } from "@/components/node-detail-panel";
 import { Button } from "@/components/ui/button";
 import { getNode, roleLabels } from "@/lib/mock";
@@ -48,6 +49,14 @@ export const NodeDetailPage = () => {
       </div>
       <div className="w-full rounded-xl border bg-card">
         <NodeDetailPanel node={node} />
+      </div>
+      <div className="w-full rounded-xl border bg-card">
+        <div className="border-b px-4 py-3 font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+          Certificates
+        </div>
+        <div className="p-4">
+          <CertInventory nodeName={node.name} />
+        </div>
       </div>
       <Button asChild variant="outline">
         <Link to="/nodes">Back to nodes</Link>
