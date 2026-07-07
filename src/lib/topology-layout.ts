@@ -129,6 +129,9 @@ const chipsForOffPath = (offPath: Node[]): Chip[] => {
   });
 };
 
+// Internal helpers read the fleet from the module-level mockNodes via @/lib/mock.
+// `nodes` is the injection seam for a future live-data provider; today it is used
+// only as the unknown-focus fallback (nodes[0]) when focusName is not found.
 export const computeFocusLayout = (focusName: string, nodes: Node[]): FocusLayout => {
   const focusNode = getNode(focusName) ?? nodes[0];
   const chain = spineOf(focusNode);

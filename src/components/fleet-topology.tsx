@@ -339,12 +339,10 @@ const FocusView = ({
   focus,
   onFocus,
   selected,
-  tip,
 }: {
   focus: string;
   onFocus: (name: string) => void;
   selected: string;
-  tip: null | Tip;
 }) => {
   const l = computeFocusLayout(focus, mockNodes);
 
@@ -406,19 +404,6 @@ const FocusView = ({
           </foreignObject>
         ))}
       </svg>
-
-      {tip ? (
-        <div
-          className="pointer-events-none fixed z-30 max-w-[280px] rounded-lg border bg-secondary px-3 py-2 shadow-xl"
-          role="tooltip"
-          style={{ left: Math.min(tip.x + 14, window.innerWidth - 300), top: tip.y + 14 }}
-        >
-          <div className={cn("font-mono text-[11px] font-bold tracking-wide", tipTone[tip.state])}>
-            {tip.title}
-          </div>
-          <div className="mt-1 text-xs leading-snug text-muted-foreground">{tip.info}</div>
-        </div>
-      ) : null}
     </div>
   );
 };
@@ -435,7 +420,7 @@ export const FleetTopology = ({
   const [tip, setTip] = useState<null | Tip>(null);
 
   if (focus) {
-    return <FocusView focus={focus} onFocus={onFocus} selected={selected} tip={tip} />;
+    return <FocusView focus={focus} onFocus={onFocus} selected={selected} />;
   }
 
   // Split children into wide fan-outs (collapse to a group) vs. small fan-outs

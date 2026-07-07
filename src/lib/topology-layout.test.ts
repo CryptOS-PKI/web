@@ -46,7 +46,7 @@ describe("computeFocusLayout", () => {
     const l = computeFocusLayout("acme-issuing-01", mockNodes);
     expect(l.downstream.kind).toBe("leaves");
     if (l.downstream.kind === "leaves") {
-      expect(l.downstream.count).toBeGreaterThan(0);
+      expect(l.downstream.count).toBe(60);
     }
   });
 
