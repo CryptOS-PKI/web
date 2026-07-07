@@ -40,6 +40,14 @@ export interface FleetManagerLink {
   note?: string;
 }
 
+/** How the Fleet Manager reaches a root CA: a per-root mTLS connection context. */
+export interface RootConnection {
+  /** mTLS gRPC endpoint the manager dials for this root. */
+  endpoint: string;
+  /** FM client identity (mTLS) presented to THIS root; distinct per root. */
+  mtlsIdentity: string;
+}
+
 export interface Node {
   /** Operator-facing node name (also the route param). */
   name: string;
@@ -69,6 +77,8 @@ export interface Node {
   crl?: string;
   /** OCSP responder endpoint; present only once the CA is established and issuing. */
   ocsp?: string;
+  /** Present on root nodes: the FM's dedicated connection context for this root. */
+  connection?: RootConnection;
 }
 
 // A fan-out of issuing CAs under a parent intermediate. `prefix` distinguishes
@@ -148,6 +158,10 @@ export const mockNodes: Node[] = [
     fleetManager: { linked: true, peerCertDays: 88 },
     bootCount: 1,
     uptime: "21d 03h",
+    connection: {
+      endpoint: "acme-root-01.pki.acme.example:8443",
+      mtlsIdentity: "fm-client@acme-root-01",
+    },
   },
   {
     name: "acme-intermediate-01",
@@ -198,6 +212,48 @@ export const mockNodes: Node[] = [
     namePrefix: "acme-issuing-h",
     parentCn: "ACME Intermediate CA G2",
     subnet: 2,
+  }),
+  {
+    name: "acme-root-02",
+    address: "10.20.10.11:8443",
+    role: "root",
+    identityState: "ESTABLISHED",
+    cn: "ACME Root CA R2",
+    issuer: "self-signed",
+    issued: 1,
+    revoked: 0,
+    tpm: "TPM · sealed",
+    fleetManager: { linked: true, peerCertDays: 40 },
+    bootCount: 1,
+    uptime: "9d 11h",
+    connection: {
+      endpoint: "acme-root-02.pki.acme.example:8443",
+      mtlsIdentity: "fm-client@acme-root-02",
+    },
+  },
+  {
+    name: "acme-intermediate-03",
+    address: "10.20.10.21:8443",
+    role: "intermediate",
+    identityState: "ESTABLISHED",
+    cn: "ACME Intermediate CA R2",
+    parentCn: "ACME Root CA R2",
+    issuer: "ACME Root CA R2",
+    issued: 37,
+    revoked: 0,
+    tpm: "UNAVAILABLE · nodeID",
+    fleetManager: { linked: true, peerCertDays: 30 },
+    bootCount: 1,
+    uptime: "3d 02h",
+    crl: "http://pki.acme.example/int-r2/crl",
+    ocsp: "http://pki.acme.example/int-r2/ocsp",
+  },
+  ...issuingFanOut({
+    count: 2,
+    cnPrefix: "ACME Issuing CA R",
+    namePrefix: "acme-issuing-r",
+    parentCn: "ACME Intermediate CA R2",
+    subnet: 10,
   }),
 ];
 
