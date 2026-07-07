@@ -22,6 +22,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { AuthGate } from "@/components/layout/auth-gate";
 import { AuditPage } from "@/pages/audit";
 import { FleetPage } from "@/pages/fleet";
+import { NodeCertDetailPage } from "@/pages/node-cert-detail";
 import { NodeDetailPage } from "@/pages/node-detail";
 import { NodesPage } from "@/pages/nodes";
 import { NotFoundPage } from "@/pages/not-found";
@@ -34,6 +35,7 @@ export const App = () => {
           <Route element={<FleetPage />} index />
           <Route element={<NodesPage />} path="nodes" />
           <Route element={<NodeDetailPage />} path="nodes/:name" />
+          <Route element={<NodeCertDetailPage />} path="nodes/:name/certs/:serial" />
           <Route element={<AuditPage />} path="audit" />
           <Route element={<NotFoundPage />} path="*" />
         </Route>
