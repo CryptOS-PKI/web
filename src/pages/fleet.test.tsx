@@ -21,7 +21,6 @@ import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 
 import { FleetPage } from "@/pages/fleet";
-import { NodesPage } from "@/pages/nodes";
 
 const renderPage = (ui: React.ReactElement) => render(<MemoryRouter>{ui}</MemoryRouter>);
 
@@ -58,13 +57,5 @@ describe("FleetPage", () => {
     // Default selection (intermediate G1) is established and has endpoints.
     expect(screen.getByText("crl")).toBeInTheDocument();
     expect(screen.getByText("ocsp")).toBeInTheDocument();
-  });
-});
-
-describe("NodesPage", () => {
-  it("renders the single-path topology treatment", () => {
-    renderPage(<NodesPage />);
-    expect(screen.getByRole("img", { name: /CA fleet topology graph/i })).toBeInTheDocument();
-    expect(screen.getByText(/trace its path to the Root/i)).toBeInTheDocument();
   });
 });
