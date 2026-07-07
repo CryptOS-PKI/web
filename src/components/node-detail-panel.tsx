@@ -109,6 +109,11 @@ export const NodeDetailPanel = ({ node }: { node: Node }) => {
         <Button disabled={node.identityState === "REVOKED"} size="sm" variant="destructive">
           {"Revoke\u2026"}
         </Button>
+        {node.identityState === "REVOKED" ? null : (
+          <Button asChild size="sm" variant="outline">
+            <Link to={`/nodes/${node.name}/config`}>Config</Link>
+          </Button>
+        )}
       </div>
     </div>
   );
