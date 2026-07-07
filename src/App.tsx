@@ -26,6 +26,7 @@ import { NodeCertDetailPage } from "@/pages/node-cert-detail";
 import { NodeConfigPage } from "@/pages/node-config";
 import { NodeDetailPage } from "@/pages/node-detail";
 import { NodeIssuePage } from "@/pages/node-issue";
+import { NodeRekeyPage } from "@/pages/node-rekey";
 import { NodesPage } from "@/pages/nodes";
 import { NotFoundPage } from "@/pages/not-found";
 
@@ -39,6 +40,7 @@ export const App = () => {
           <Route element={<NodeDetailPage />} path="nodes/:name" />
           <Route element={<NodeConfigPage />} path="nodes/:name/config" />
           <Route element={<NodeIssuePage />} path="nodes/:name/issue" />
+          <Route element={<NodeRekeyPage />} path="nodes/:name/rekey" />
           <Route element={<NodeCertDetailPage />} path="nodes/:name/certs/:serial" />
           <Route element={<AuditPage />} path="audit" />
           <Route element={<NotFoundPage />} path="*" />

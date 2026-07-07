@@ -114,6 +114,11 @@ export const NodeDetailPanel = ({ node }: { node: Node }) => {
             <Link to={`/nodes/${node.name}/config`}>Config</Link>
           </Button>
         )}
+        {node.identityState === "REVOKED" ? null : (
+          <Button asChild size="sm" variant="outline">
+            <Link to={`/nodes/${node.name}/rekey`}>{"Re-key…"}</Link>
+          </Button>
+        )}
       </div>
     </div>
   );
