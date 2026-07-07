@@ -20,7 +20,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { RekeyWizard } from "@/components/rekey-wizard";
-import { getNode } from "@/lib/mock";
+import { getNode } from "@/lib/nodes";
 
 describe("RekeyWizard", () => {
   it("advances through the steps to completion", () => {

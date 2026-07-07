@@ -21,7 +21,7 @@ import { Link, Navigate, useParams } from "react-router-dom";
 import { ConfigForm } from "@/components/config-form";
 import { RekeyWizard } from "@/components/rekey-wizard";
 import { Button } from "@/components/ui/button";
-import { getNode } from "@/lib/mock";
+import { getNode } from "@/lib/nodes";
 
 const Panel = ({ children, label }: { children: React.ReactNode; label: string }) => (
   <div className="w-full rounded-xl border bg-card">

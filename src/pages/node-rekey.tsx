@@ -20,7 +20,7 @@ import { Link, Navigate, useParams } from "react-router-dom";
 
 import { RekeyWizard } from "@/components/rekey-wizard";
 import { Button } from "@/components/ui/button";
-import { getNode } from "@/lib/mock";
+import { getNode } from "@/lib/nodes";
 
 export const NodeRekeyPage = () => {
   const { name } = useParams<{ name: string }>();

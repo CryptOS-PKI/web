@@ -18,7 +18,8 @@ limitations under the License.
 
 import { describe, expect, it } from "vitest";
 
-import { aggregateState, childrenOf, getNodeByCn } from "@/lib/mock";
+import { aggregateState, childrenOf } from "@/lib/mock";
+import { getNodeByCn } from "@/lib/nodes";
 
 describe("mock topology", () => {
   it("has two intermediates under the root, each with a fan-out", () => {

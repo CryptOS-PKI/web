@@ -21,7 +21,8 @@ import { useEffect, useState } from "react";
 import { FleetTopology } from "@/components/fleet-topology";
 import { NodeDetailPanel } from "@/components/node-detail-panel";
 import { NodeSelect } from "@/components/node-select";
-import { getNode, mockNodes } from "@/lib/mock";
+import { mockNodes } from "@/lib/mock";
+import { getNode, useNodes } from "@/lib/nodes";
 
 const PanelHeader = ({ children, label }: { children?: React.ReactNode; label: string }) => {
   return (
@@ -72,8 +73,9 @@ export const TopologyExplorer = ({
 }) => {
   const [selected, setSelected] = useState(defaultSelected);
   const [focus, setFocus] = useState<null | string>(null);
-  const rootCount = mockNodes.filter((n) => n.role === "root").length;
-  const node = getNode(selected) ?? mockNodes[0];
+  const allNodes = useNodes();
+  const rootCount = allNodes.filter((n) => n.role === "root").length;
+  const node = getNode(selected) ?? allNodes[0];
 
   const action = singlePath
     ? "click a node to trace its path to the Root"
@@ -101,7 +103,7 @@ export const TopologyExplorer = ({
       <div className="space-y-1">
         <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
         <p className="text-sm text-muted-foreground">
-          {rootCount} Root · {mockNodes.length} nodes · {action}
+          {rootCount} Root · {allNodes.length} nodes · {action}
         </p>
       </div>
 

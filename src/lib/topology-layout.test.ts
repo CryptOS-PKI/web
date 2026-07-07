@@ -56,4 +56,19 @@ describe("computeTreeLayout", () => {
     expect(bounds.maxX).toBeGreaterThan(bounds.minX);
     expect(bounds.maxY).toBeGreaterThan(bounds.minY);
   });
+
+  it("places a node added under an existing parent at the correct depth", () => {
+    const extra = {
+      ...mockNodes.find((n) => n.role === "issuing")!, // clone shape
+      name: "acme-issuing-added",
+      cn: "ACME Issuing CA ADDED",
+      parentCn: "ACME Intermediate CA G1", // an ESTABLISHED intermediate in the fixture
+    };
+    const l = computeTreeLayout([...mockNodes, extra]);
+    const added = l.byName["acme-issuing-added"];
+    const parent = l.byName["acme-intermediate-01"];
+    expect(added).toBeDefined();
+    expect(added.x).toBeGreaterThan(0); // not piled on the root at x=0
+    expect(added.x).toBe(parent.x + 260); // one column deeper than its parent (COL=260)
+  });
 });
