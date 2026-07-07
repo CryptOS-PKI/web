@@ -29,6 +29,7 @@ import { NodeIssuePage } from "@/pages/node-issue";
 import { NodeRekeyPage } from "@/pages/node-rekey";
 import { NodesPage } from "@/pages/nodes";
 import { NotFoundPage } from "@/pages/not-found";
+import { RootPage } from "@/pages/root";
 
 export const App = () => {
   return (
@@ -42,6 +43,7 @@ export const App = () => {
           <Route element={<NodeIssuePage />} path="nodes/:name/issue" />
           <Route element={<NodeRekeyPage />} path="nodes/:name/rekey" />
           <Route element={<NodeCertDetailPage />} path="nodes/:name/certs/:serial" />
+          <Route element={<RootPage />} path="root" />
           <Route element={<AuditPage />} path="audit" />
           <Route element={<NotFoundPage />} path="*" />
         </Route>
