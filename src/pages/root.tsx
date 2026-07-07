@@ -16,47 +16,56 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import { ConfigForm } from "@/components/config-form";
-import { RekeyWizard } from "@/components/rekey-wizard";
+import { Link } from "react-router-dom";
+
+import { IdentityBadge } from "@/components/identity-badge";
+import { certsFor } from "@/lib/certs";
 import { mockNodes } from "@/lib/mock";
 
-const Panel = ({ children, label }: { children: React.ReactNode; label: string }) => (
-  <div className="w-full rounded-xl border bg-card">
-    <div className="border-b px-4 py-3 font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
-      {label}
-    </div>
-    <div className="p-4">{children}</div>
-  </div>
-);
-
+// The fleet's root CAs. Each root is an independent trust anchor the manager
+// reaches over its own mTLS identity; a row opens that root's config + ceremony.
 export const RootPage = () => {
-  const root = mockNodes.find((n) => n.role === "root");
-
-  if (!root) {
-    return (
-      <section className="space-y-4">
-        <h1 className="font-mono text-2xl font-bold tracking-tight">No root CA</h1>
-        <p className="text-sm text-muted-foreground">The fleet has no root node.</p>
-      </section>
-    );
-  }
+  const roots = mockNodes.filter((n) => n.role === "root");
 
   return (
     <section className="space-y-5">
       <div className="space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight">Root CA</h1>
-        <p className="font-mono text-sm text-muted-foreground">
-          <span>{root.name}</span>
-          {" · "}
-          <span>{root.address}</span>
-        </p>
+        <h1 className="text-2xl font-bold tracking-tight">Root CAs</h1>
+        <p className="text-sm text-muted-foreground">{roots.length} root CAs</p>
       </div>
-      <Panel label="Config">
-        <ConfigForm node={root} />
-      </Panel>
-      <Panel label="Re-key / ceremony">
-        <RekeyWizard node={root} />
-      </Panel>
+
+      {roots.length === 0 ? (
+        <p className="font-mono text-sm text-muted-foreground">No root CAs.</p>
+      ) : (
+        <div className="overflow-x-auto rounded-xl border bg-card">
+          <table className="w-full text-left font-mono text-sm">
+            <thead className="bg-secondary text-[10.5px] uppercase tracking-wider text-muted-foreground">
+              <tr>
+                <th className="px-4 py-2.5">Name</th>
+                <th className="px-4 py-2.5">Identity</th>
+                <th className="px-4 py-2.5">Certs</th>
+                <th className="px-4 py-2.5" />
+              </tr>
+            </thead>
+            <tbody>
+              {roots.map((n) => (
+                <tr className="border-t hover:bg-accent" key={n.name}>
+                  <td className="px-4 py-2.5">
+                    <Link className="text-primary hover:underline" to={`/root/${n.name}`}>
+                      {n.name}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <IdentityBadge state={n.identityState} />
+                  </td>
+                  <td className="px-4 py-2.5">{certsFor(n.name).length}</td>
+                  <td className="px-4 py-2.5 text-right text-muted-foreground">{"\u203A"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </section>
   );
 };

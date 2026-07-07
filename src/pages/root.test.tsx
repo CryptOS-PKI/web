@@ -23,14 +23,19 @@ import { describe, expect, it } from "vitest";
 import { RootPage } from "@/pages/root";
 
 describe("RootPage", () => {
-  it("shows the root node with config and ceremony sections", () => {
+  it("lists the root CAs, each linking to its detail page", () => {
     render(
       <MemoryRouter>
         <RootPage />
       </MemoryRouter>,
     );
-    expect(screen.getByText("acme-root-01")).toBeInTheDocument();
-    expect(screen.getByText(/config/i)).toBeInTheDocument();
-    expect(screen.getByText(/ceremony/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /acme-root-01/ })).toHaveAttribute(
+      "href",
+      "/root/acme-root-01",
+    );
+    expect(screen.getByRole("link", { name: /acme-root-02/ })).toHaveAttribute(
+      "href",
+      "/root/acme-root-02",
+    );
   });
 });
