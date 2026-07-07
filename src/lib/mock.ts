@@ -71,31 +71,38 @@ export interface Node {
   ocsp?: string;
 }
 
-// A wide fan-out of issuing CAs under ACME Intermediate CA G1. This intentionally
-// exceeds `groupThreshold` so the topology view collapses it into a single group
-// box instead of drawing a dozen circles. The states are seeded so the group's
-// aggregate summary and feeder color exercise the mixed case (one pending, one
-// revoked, the rest established).
-const issuingFanOut = (): Node[] => {
-  const count = 12;
+// A fan-out of issuing CAs under a parent intermediate. `prefix` distinguishes
+// each branch's node names (e.g. "issuing" -> acme-issuing-01, "issuing-h" ->
+// acme-issuing-h01). When `allRevoked` is set the whole branch is REVOKED — a
+// revoked parent breaks its children's chains — otherwise the states are seeded
+// to exercise the mixed case (one pending, one revoked, the rest established).
+const issuingFanOut = (options: {
+  allRevoked?: boolean;
+  count: number;
+  cnPrefix: string;
+  namePrefix: string;
+  parentCn: string;
+  subnet: number;
+}): Node[] => {
+  const { allRevoked = false, count, cnPrefix, namePrefix, parentCn, subnet } = options;
   return Array.from({ length: count }, (_, i): Node => {
     const n = String(i + 1).padStart(2, "0");
-    const pending = i === 6;
-    const revoked = i === 10;
+    const pending = !allRevoked && i === 6;
+    const revoked = allRevoked || i === 10;
     const identityState: IdentityState = pending
       ? "AWAITING_CERT"
       : revoked
         ? "REVOKED"
         : "ESTABLISHED";
-    const issued = pending ? 0 : revoked ? 0 : 60 + i * 7;
+    const issued = identityState === "ESTABLISHED" ? 60 + i * 7 : 0;
     return {
-      name: `acme-issuing-${n}`,
-      address: `10.20.1.${10 + i}:8443`,
+      name: `${namePrefix}${n}`,
+      address: `10.20.${subnet}.${10 + i}:8443`,
       role: "issuing",
       identityState,
-      cn: `ACME Issuing CA G${n}`,
-      parentCn: "ACME Intermediate CA G1",
-      issuer: pending ? "ACME Intermediate CA G1 (pending)" : "ACME Intermediate CA G1",
+      cn: `${cnPrefix}${n}`,
+      parentCn,
+      issuer: pending ? `${parentCn} (pending)` : parentCn,
       issued,
       revoked: revoked ? 44 : 0,
       tpm: "UNAVAILABLE · nodeID",
@@ -104,8 +111,14 @@ const issuingFanOut = (): Node[] => {
         : { linked: true, peerCertDays: 90 - i },
       bootCount: 1,
       uptime: `${i}d 0${(i % 9) + 1}h`,
-      crl: identityState === "ESTABLISHED" ? `http://pki.acme.example/iss-g${n}/crl` : undefined,
-      ocsp: identityState === "ESTABLISHED" ? `http://pki.acme.example/iss-g${n}/ocsp` : undefined,
+      crl:
+        identityState === "ESTABLISHED"
+          ? `http://pki.acme.example/${namePrefix}${n}/crl`
+          : undefined,
+      ocsp:
+        identityState === "ESTABLISHED"
+          ? `http://pki.acme.example/${namePrefix}${n}/ocsp`
+          : undefined,
     };
   });
 };
@@ -159,7 +172,45 @@ export const mockNodes: Node[] = [
     crl: "http://pki.acme.example/int-g2/crl",
     ocsp: "http://pki.acme.example/int-g2/ocsp",
   },
-  ...issuingFanOut(),
+  {
+    name: "acme-intermediate-03",
+    address: "10.20.0.23:8443",
+    role: "intermediate",
+    identityState: "ESTABLISHED",
+    cn: "ACME Intermediate CA G3",
+    parentCn: "ACME Root CA G1",
+    issuer: "ACME Root CA G1",
+    issued: 18,
+    revoked: 0,
+    tpm: "UNAVAILABLE · nodeID",
+    fleetManager: { linked: true, peerCertDays: 40 },
+    bootCount: 1,
+    uptime: "3d 02h",
+    crl: "http://pki.acme.example/int-g3/crl",
+    ocsp: "http://pki.acme.example/int-g3/ocsp",
+  },
+  ...issuingFanOut({
+    count: 12,
+    cnPrefix: "ACME Issuing CA G",
+    namePrefix: "acme-issuing-",
+    parentCn: "ACME Intermediate CA G1",
+    subnet: 1,
+  }),
+  ...issuingFanOut({
+    allRevoked: true,
+    count: 6,
+    cnPrefix: "ACME Issuing CA H",
+    namePrefix: "acme-issuing-h",
+    parentCn: "ACME Intermediate CA G2",
+    subnet: 2,
+  }),
+  ...issuingFanOut({
+    count: 3,
+    cnPrefix: "ACME Issuing CA K",
+    namePrefix: "acme-issuing-k",
+    parentCn: "ACME Intermediate CA G3",
+    subnet: 3,
+  }),
 ];
 
 export const getNode = (name: string): Node | undefined => {
