@@ -82,13 +82,24 @@ const issuingFanOut = (options: {
   cnPrefix: string;
   namePrefix: string;
   parentCn: string;
+  pendingIndex?: number;
+  revokedIndex?: number;
   subnet: number;
 }): Node[] => {
-  const { allRevoked = false, count, cnPrefix, namePrefix, parentCn, subnet } = options;
+  const {
+    allRevoked = false,
+    count,
+    cnPrefix,
+    namePrefix,
+    parentCn,
+    pendingIndex = -1,
+    revokedIndex = -1,
+    subnet,
+  } = options;
   return Array.from({ length: count }, (_, i): Node => {
     const n = String(i + 1).padStart(2, "0");
-    const pending = !allRevoked && i === 6;
-    const revoked = allRevoked || i === 10;
+    const pending = !allRevoked && i === pendingIndex;
+    const revoked = allRevoked || i === revokedIndex;
     const identityState: IdentityState = pending
       ? "AWAITING_CERT"
       : revoked
@@ -131,7 +142,7 @@ export const mockNodes: Node[] = [
     identityState: "ESTABLISHED",
     cn: "ACME Root CA G1",
     issuer: "self-signed",
-    issued: 3,
+    issued: 2,
     revoked: 0,
     tpm: "TPM · sealed",
     fleetManager: { linked: true, peerCertDays: 88 },
@@ -172,44 +183,21 @@ export const mockNodes: Node[] = [
     crl: "http://pki.acme.example/int-g2/crl",
     ocsp: "http://pki.acme.example/int-g2/ocsp",
   },
-  {
-    name: "acme-intermediate-03",
-    address: "10.20.0.23:8443",
-    role: "intermediate",
-    identityState: "ESTABLISHED",
-    cn: "ACME Intermediate CA G3",
-    parentCn: "ACME Root CA G1",
-    issuer: "ACME Root CA G1",
-    issued: 18,
-    revoked: 0,
-    tpm: "UNAVAILABLE · nodeID",
-    fleetManager: { linked: true, peerCertDays: 40 },
-    bootCount: 1,
-    uptime: "3d 02h",
-    crl: "http://pki.acme.example/int-g3/crl",
-    ocsp: "http://pki.acme.example/int-g3/ocsp",
-  },
   ...issuingFanOut({
-    count: 12,
+    count: 3,
     cnPrefix: "ACME Issuing CA G",
     namePrefix: "acme-issuing-",
     parentCn: "ACME Intermediate CA G1",
+    pendingIndex: 2,
     subnet: 1,
   }),
   ...issuingFanOut({
     allRevoked: true,
-    count: 6,
+    count: 2,
     cnPrefix: "ACME Issuing CA H",
     namePrefix: "acme-issuing-h",
     parentCn: "ACME Intermediate CA G2",
     subnet: 2,
-  }),
-  ...issuingFanOut({
-    count: 3,
-    cnPrefix: "ACME Issuing CA K",
-    namePrefix: "acme-issuing-k",
-    parentCn: "ACME Intermediate CA G3",
-    subnet: 3,
   }),
 ];
 

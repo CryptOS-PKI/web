@@ -21,25 +21,24 @@ import { describe, expect, it } from "vitest";
 import { aggregateState, childrenOf, getNodeByCn } from "@/lib/mock";
 
 describe("mock topology", () => {
-  it("has three intermediates under the root, each with a fan-out", () => {
+  it("has two intermediates under the root, each with a fan-out", () => {
     expect(
       childrenOf("ACME Root CA G1")
         .map((n) => n.cn)
         .sort(),
-    ).toEqual(["ACME Intermediate CA G1", "ACME Intermediate CA G2", "ACME Intermediate CA G3"]);
-    expect(childrenOf("ACME Intermediate CA G1")).toHaveLength(12);
-    expect(childrenOf("ACME Intermediate CA G2")).toHaveLength(6);
-    expect(childrenOf("ACME Intermediate CA G3")).toHaveLength(3);
+    ).toEqual(["ACME Intermediate CA G1", "ACME Intermediate CA G2"]);
+    expect(childrenOf("ACME Intermediate CA G1")).toHaveLength(3);
+    expect(childrenOf("ACME Intermediate CA G2")).toHaveLength(2);
   });
 
-  it("uses the correct H/K letter prefix for the G2 and G3 issuing CNs", () => {
+  it("uses the correct H letter prefix for the G2 issuing CNs", () => {
+    expect(childrenOf("ACME Intermediate CA G1")[0].cn).toBe("ACME Issuing CA G01");
     expect(childrenOf("ACME Intermediate CA G2")[0].cn).toBe("ACME Issuing CA H01");
-    expect(childrenOf("ACME Intermediate CA G3")[0].cn).toBe("ACME Issuing CA K01");
   });
 
-  it("makes the G2 branch fully revoked and the G3 branch established", () => {
+  it("makes the G2 branch fully revoked and the G1 branch established", () => {
     expect(getNodeByCn("ACME Intermediate CA G2")?.identityState).toBe("REVOKED");
     expect(aggregateState(childrenOf("ACME Intermediate CA G2"))).toBe("REVOKED");
-    expect(aggregateState(childrenOf("ACME Intermediate CA G3"))).toBe("ESTABLISHED");
+    expect(aggregateState(childrenOf("ACME Intermediate CA G1"))).toBe("AWAITING_CERT");
   });
 });
