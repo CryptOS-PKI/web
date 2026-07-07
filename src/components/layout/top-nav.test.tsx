@@ -31,6 +31,10 @@ describe("TopNav", () => {
     );
     expect(screen.getByRole("link", { name: /fleet/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /nodes/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /enrollment/i })).toHaveAttribute(
+      "href",
+      "/enrollment",
+    );
     expect(screen.getByRole("link", { name: /root/i })).toHaveAttribute("href", "/root");
     expect(screen.getByRole("link", { name: /audit/i })).toBeInTheDocument();
   });

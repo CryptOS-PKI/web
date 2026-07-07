@@ -21,7 +21,8 @@ import { Link, useParams } from "react-router-dom";
 import { CertInventory } from "@/components/cert-inventory";
 import { NodeDetailPanel } from "@/components/node-detail-panel";
 import { Button } from "@/components/ui/button";
-import { getNode, roleLabels } from "@/lib/mock";
+import { roleLabels } from "@/lib/mock";
+import { getNode } from "@/lib/nodes";
 
 export const NodeDetailPage = () => {
   const { name } = useParams<{ name: string }>();

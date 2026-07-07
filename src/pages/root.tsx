@@ -20,12 +20,12 @@ import { Link } from "react-router-dom";
 
 import { IdentityBadge } from "@/components/identity-badge";
 import { certsFor } from "@/lib/certs";
-import { mockNodes } from "@/lib/mock";
+import { useNodes } from "@/lib/nodes";
 
 // The fleet's root CAs. Each root is an independent trust anchor the manager
 // reaches over its own mTLS identity; a row opens that root's config + ceremony.
 export const RootPage = () => {
-  const roots = mockNodes.filter((n) => n.role === "root");
+  const roots = useNodes().filter((n) => n.role === "root");
 
   return (
     <section className="space-y-5">

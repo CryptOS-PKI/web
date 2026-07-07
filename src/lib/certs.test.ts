@@ -18,7 +18,7 @@ limitations under the License.
 
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { getNode } from "@/lib/mock";
+import { getNode } from "@/lib/nodes";
 import { canIssue, certsFor, issueCert, revokeCert, __resetCerts } from "@/lib/certs";
 
 describe("canIssue", () => {

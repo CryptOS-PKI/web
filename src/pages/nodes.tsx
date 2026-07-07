@@ -20,11 +20,12 @@ import { Link } from "react-router-dom";
 
 import { IdentityBadge } from "@/components/identity-badge";
 import { certsFor } from "@/lib/certs";
-import { mockNodes, roleLabels } from "@/lib/mock";
+import { roleLabels } from "@/lib/mock";
+import { useNodes } from "@/lib/nodes";
 
 // Operational nodes only -- the Root CA has its own surface at /root.
 export const NodesPage = () => {
-  const nodes = mockNodes.filter((n) => n.role !== "root");
+  const nodes = useNodes().filter((n) => n.role !== "root");
 
   return (
     <section className="space-y-5">

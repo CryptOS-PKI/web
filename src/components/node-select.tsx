@@ -19,7 +19,8 @@ limitations under the License.
 import { useEffect, useRef, useState } from "react";
 
 import { IdentityBadge } from "@/components/identity-badge";
-import { getNode, mockNodes, type NodeRole, roleLabels } from "@/lib/mock";
+import { type NodeRole, roleLabels } from "@/lib/mock";
+import { getNode, useNodes } from "@/lib/nodes";
 import { cn } from "@/lib/utils";
 
 // Nodes grouped by role in the dropdown, so the options read cleanly.
@@ -41,7 +42,8 @@ export const NodeSelect = ({
 }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
-  const current = getNode(selected) ?? mockNodes[0];
+  const allNodes = useNodes();
+  const current = getNode(selected) ?? allNodes[0];
 
   useEffect(() => {
     const onDocMouseDown = (e: MouseEvent) => {
@@ -87,7 +89,7 @@ export const NodeSelect = ({
           role="listbox"
         >
           {GROUP_ORDER.map((role) => {
-            const group = mockNodes.filter((n) => n.role === role);
+            const group = allNodes.filter((n) => n.role === role);
             if (group.length === 0) return null;
             return (
               <div key={role}>

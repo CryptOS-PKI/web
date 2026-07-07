@@ -22,7 +22,7 @@ import { Link, Navigate, useParams } from "react-router-dom";
 import { IssueForm } from "@/components/issue-form";
 import { Button } from "@/components/ui/button";
 import { canIssue, type Cert } from "@/lib/certs";
-import { getNode } from "@/lib/mock";
+import { getNode } from "@/lib/nodes";
 
 export const NodeIssuePage = () => {
   const { name } = useParams<{ name: string }>();
