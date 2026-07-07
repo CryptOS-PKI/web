@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import { childrenOf, type IdentityState, type Node, type NodeRole } from "@/lib/mock";
+import { type IdentityState, type Node, type NodeRole } from "@/lib/mock";
 
 // A tidy left-to-right tree layout for the whole CA fleet. Every CA is a circle;
 // the pan/zoom canvas handles scale and a node's subtree can be collapsed. Depth
@@ -73,11 +73,23 @@ export const computeTreeLayout = (
   nodes: Node[],
   collapsed: Set<string> = new Set(),
 ): TreeLayout => {
+  // Build a parent-CN -> children index from the passed nodes so that nodes
+  // added at runtime (e.g. via addNode after enrollment approval) are visible to
+  // the layout recursion. This replaces the static childrenOf() import from mock.
+  const childrenByParentCn = new Map<string, Node[]>();
+  for (const n of nodes) {
+    if (!n.parentCn) continue;
+    const arr = childrenByParentCn.get(n.parentCn) ?? [];
+    arr.push(n);
+    childrenByParentCn.set(n.parentCn, arr);
+  }
+  const childOf = (cn: string): Node[] => childrenByParentCn.get(cn) ?? [];
+
   // Descendants of a collapsed node are hidden and excluded from the layout, so
   // the tree re-packs tightly around what remains.
   const hidden = new Set<string>();
   const markHidden = (cn: string): void => {
-    for (const c of childrenOf(cn)) {
+    for (const c of childOf(cn)) {
       hidden.add(c.name);
       markHidden(c.cn);
     }
@@ -90,7 +102,7 @@ export const computeTreeLayout = (
 
   // Effective children: a collapsed node lays out as a leaf.
   const kidsOf = (node: Node): Node[] =>
-    collapsed.has(node.name) ? [] : childrenOf(node.cn).filter((c) => !hidden.has(c.name));
+    collapsed.has(node.name) ? [] : childOf(node.cn).filter((c) => !hidden.has(c.name));
 
   const roots = shown.filter((n) => !n.parentCn);
   const yByName = new Map<string, number>();
@@ -122,7 +134,7 @@ export const computeTreeLayout = (
   const placed: Placed[] = shown.map((n) => ({
     cn: n.cn,
     collapsed: collapsed.has(n.name),
-    hasChildren: childrenOf(n.cn).length > 0,
+    hasChildren: childOf(n.cn).length > 0,
     issued: n.issued,
     name: n.name,
     r: radiusFor(n.role),
