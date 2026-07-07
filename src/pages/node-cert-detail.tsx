@@ -63,6 +63,7 @@ export const NodeCertDetailPage = () => {
         <Row label="eku">{cert.eku.join(", ") || "\u2014"}</Row>
         <Row label="sans">{cert.sans.join(", ") || "\u2014"}</Row>
         {cert.pathLen === undefined ? null : <Row label="path len">{cert.pathLen}</Row>}
+        {cert.profile ? <Row label="profile">{cert.profile}</Row> : null}
         {cert.reason ? <Row label="revocation reason">{cert.reason}</Row> : null}
       </div>
       <Button asChild variant="outline">
