@@ -116,7 +116,7 @@ export const NodeDetailPanel = ({ node }: { node: Node }) => {
         )}
         {node.identityState === "REVOKED" ? null : (
           <Button asChild size="sm" variant="outline">
-            <Link to={`/nodes/${node.name}/rekey`}>{"Re-key…"}</Link>
+            <Link to={`/nodes/${node.name}/rekey`}>{"Re-key\u2026"}</Link>
           </Button>
         )}
       </div>
