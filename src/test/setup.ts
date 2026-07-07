@@ -17,3 +17,20 @@ limitations under the License.
 */
 
 import "@testing-library/jest-dom/vitest";
+
+// jsdom has no matchMedia. Stub it as reduce=true so the topology's staged
+// reveal takes its instant path in tests (no rAF), keeping focus behavior
+// deterministic.
+globalThis.matchMedia = globalThis.matchMedia
+  ? globalThis.matchMedia.bind(globalThis)
+  : (query: string): MediaQueryList =>
+      ({
+        addEventListener: () => {},
+        addListener: () => {},
+        dispatchEvent: () => false,
+        matches: true,
+        media: query,
+        onchange: null,
+        removeEventListener: () => {},
+        removeListener: () => {},
+      }) as unknown as MediaQueryList;
