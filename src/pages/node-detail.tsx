@@ -21,8 +21,15 @@ import { Link, useParams } from "react-router-dom";
 import { CertInventory } from "@/components/cert-inventory";
 import { NodeDetailPanel } from "@/components/node-detail-panel";
 import { Button } from "@/components/ui/button";
-import { roleLabels } from "@/lib/mock";
-import { getNode } from "@/lib/nodes";
+import { type IdentityState, roleLabels } from "@/lib/mock";
+import { chainToRoot, getNode } from "@/lib/nodes";
+import { cn } from "@/lib/utils";
+
+const stateTone: Record<IdentityState, string> = {
+  AWAITING_CERT: "text-warning",
+  ESTABLISHED: "text-success",
+  REVOKED: "text-destructive",
+};
 
 export const NodeDetailPage = () => {
   const { name } = useParams<{ name: string }>();
@@ -50,6 +57,38 @@ export const NodeDetailPage = () => {
       </div>
       <div className="w-full rounded-xl border bg-card">
         <NodeDetailPanel node={node} />
+      </div>
+      <div className="w-full rounded-xl border bg-card">
+        <div className="border-b px-4 py-3 font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+          Trust chain
+        </div>
+        <div className="flex flex-wrap items-center gap-2 p-4 font-mono text-xs">
+          {chainToRoot(node).map((n, i) => (
+            <span className="flex items-center gap-2" key={n.name}>
+              {i > 0 ? <span className="text-muted-foreground">{"\u2192"}</span> : null}
+              {n.name === node.name ? (
+                <span
+                  className={cn(
+                    "rounded-md border bg-secondary px-2.5 py-1 font-semibold",
+                    stateTone[n.identityState],
+                  )}
+                >
+                  {n.name}
+                </span>
+              ) : (
+                <Link
+                  className={cn(
+                    "rounded-md border px-2.5 py-1 hover:bg-accent",
+                    stateTone[n.identityState],
+                  )}
+                  to={`/nodes/${n.name}`}
+                >
+                  {n.name}
+                </Link>
+              )}
+            </span>
+          ))}
+        </div>
       </div>
       <div className="w-full rounded-xl border bg-card">
         <div className="border-b px-4 py-3 font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
