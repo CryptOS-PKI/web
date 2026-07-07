@@ -34,6 +34,7 @@ import { NotFoundPage } from "@/pages/not-found";
 import { ProfileDetailPage } from "@/pages/profile-detail";
 import { ProfileNewPage } from "@/pages/profile-new";
 import { ProfilesPage } from "@/pages/profiles";
+import { ProtocolsPage } from "@/pages/protocols";
 import { RootPage } from "@/pages/root";
 import { RootDetailPage } from "@/pages/root-detail";
 
@@ -55,6 +56,7 @@ export const App = () => {
           <Route element={<EnrollmentDetailPage />} path="enrollment/:id" />
           <Route element={<AuditPage />} path="audit" />
           <Route element={<ProfilesPage />} path="profiles" />
+          <Route element={<ProtocolsPage />} path="protocols" />
           <Route element={<ProfileNewPage />} path="profiles/new" />
           <Route element={<ProfileDetailPage />} path="profiles/:name" />
           <Route element={<NotFoundPage />} path="*" />
