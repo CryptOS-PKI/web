@@ -33,6 +33,7 @@ export interface Cert {
   notAfter: string;
   notBefore: string;
   pathLen?: number;
+  profile?: string;
   reason?: RevocationReason;
   revokedAt?: string;
   sans: string[];
@@ -46,6 +47,7 @@ export interface IssueDraft {
   eku?: string[];
   kind: CertKind;
   pathLen?: number;
+  profile?: string;
   sans?: string[];
   subjectCn: string;
   validityDays: number;
@@ -148,6 +150,7 @@ export const issueCert = (issuerNodeName: string, draft: IssueDraft): Cert => {
     notAfter: daysFromNow(draft.validityDays),
     notBefore: daysFromNow(0),
     pathLen: draft.kind === "subordinate-ca" ? (draft.pathLen ?? 0) : undefined,
+    profile: draft.profile,
     sans: draft.sans ?? [],
     serial: hex(nextSerial++),
     status: "VALID",
