@@ -19,8 +19,10 @@ limitations under the License.
 import { useEffect, useState } from "react";
 
 import { FleetTopology } from "@/components/fleet-topology";
+import { IdentityBadge } from "@/components/identity-badge";
 import { NodeDetailPanel } from "@/components/node-detail-panel";
-import { getNode, mockNodes } from "@/lib/mock";
+import { getNode, mockNodes, roleLabels } from "@/lib/mock";
+import { cn } from "@/lib/utils";
 
 const PanelHeader = ({ children, label }: { children?: React.ReactNode; label: string }) => {
   return (
@@ -63,9 +65,11 @@ const defaultSelected =
 export const TopologyExplorer = ({
   singlePath = false,
   title,
+  withList = false,
 }: {
   singlePath?: boolean;
   title: string;
+  withList?: boolean;
 }) => {
   const [selected, setSelected] = useState(defaultSelected);
   const [focus, setFocus] = useState<null | string>(null);
@@ -103,6 +107,36 @@ export const TopologyExplorer = ({
       </div>
 
       <div className="grid grid-cols-1 gap-5">
+        {withList ? (
+          <div className="w-full rounded-xl border bg-card">
+            <PanelHeader label="Nodes" />
+            <div>
+              {mockNodes.map((n, i) => (
+                <div key={n.name}>
+                  {i > 0 ? <div className="border-t" /> : null}
+                  <button
+                    aria-pressed={n.name === selected}
+                    className={cn(
+                      "flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition-colors hover:bg-accent",
+                      n.name === selected && "bg-secondary",
+                    )}
+                    onClick={() => handleFocus(n.name)}
+                    type="button"
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate font-mono text-sm font-medium">{n.name}</span>
+                      <span className="block font-mono text-xs text-muted-foreground">
+                        {roleLabels[n.role]} · {n.address}
+                      </span>
+                    </span>
+                    <IdentityBadge state={n.identityState} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
         <div className="w-full rounded-xl border bg-card">
           <PanelHeader label="Topology">
             {focus ? (

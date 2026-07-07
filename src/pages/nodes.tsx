@@ -18,8 +18,8 @@ limitations under the License.
 
 import { TopologyExplorer } from "@/components/topology-explorer";
 
-// Same topology treatment as the Fleet page, but focusing a node shows only its
-// single path back to the Root (no descendant fan).
+// The node list, plus the topology treatment: clicking a node (in the list or
+// the canvas) shows only its single path back to the Root (no descendant fan).
 export const NodesPage = () => {
-  return <TopologyExplorer singlePath title="Nodes" />;
+  return <TopologyExplorer singlePath title="Nodes" withList />;
 };
