@@ -18,25 +18,27 @@ limitations under the License.
 
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
-import { TopNav } from "@/components/layout/top-nav";
+import { __resetProfiles } from "@/lib/profiles";
+import { ProfilesPage } from "@/pages/profiles";
 
-describe("TopNav", () => {
-  it("renders the primary nav links", () => {
+describe("ProfilesPage", () => {
+  beforeEach(() => __resetProfiles());
+
+  it("lists profiles linking to their detail, plus a New profile link", () => {
     render(
       <MemoryRouter>
-        <TopNav />
+        <ProfilesPage />
       </MemoryRouter>,
     );
-    expect(screen.getByRole("link", { name: /fleet/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /nodes/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /enrollment/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /domain controller/i })).toHaveAttribute(
       "href",
-      "/enrollment",
+      "/profiles/Domain Controller",
     );
-    expect(screen.getByRole("link", { name: /profiles/i })).toHaveAttribute("href", "/profiles");
-    expect(screen.getByRole("link", { name: /root/i })).toHaveAttribute("href", "/root");
-    expect(screen.getByRole("link", { name: /audit/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /new profile/i })).toHaveAttribute(
+      "href",
+      "/profiles/new",
+    );
   });
 });

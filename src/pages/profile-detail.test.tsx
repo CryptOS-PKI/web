@@ -1,0 +1,51 @@
+/*
+Apache License 2.0
+
+Copyright 2026 Shane
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+import { fireEvent, render, screen } from "@testing-library/react";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { beforeEach, describe, expect, it } from "vitest";
+
+import { __resetProfiles, getProfile } from "@/lib/profiles";
+import { ProfileDetailPage } from "@/pages/profile-detail";
+
+const renderAt = (path: string) =>
+  render(
+    <MemoryRouter initialEntries={[path]}>
+      <Routes>
+        <Route element={<ProfileDetailPage />} path="/profiles/:name" />
+        <Route element={<div>profiles list</div>} path="/profiles" />
+      </Routes>
+    </MemoryRouter>,
+  );
+
+describe("ProfileDetailPage", () => {
+  beforeEach(() => __resetProfiles());
+
+  it("edits an existing profile's validity", () => {
+    renderAt("/profiles/Code Signing");
+    const validity = screen.getByLabelText(/validity/i);
+    fireEvent.change(validity, { target: { value: "730" } });
+    fireEvent.click(screen.getByRole("button", { name: /save/i }));
+    expect(getProfile("Code Signing")?.validityDays).toBe(730);
+  });
+
+  it("redirects an unknown profile to the list", () => {
+    renderAt("/profiles/Nope");
+    expect(screen.getByText("profiles list")).toBeInTheDocument();
+  });
+});

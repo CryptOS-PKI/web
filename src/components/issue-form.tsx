@@ -21,6 +21,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { canIssue, type Cert, type CertKind, issueCert } from "@/lib/certs";
 import { type Node } from "@/lib/mock";
+import { getProfile, useProfiles } from "@/lib/profiles";
 import { cn } from "@/lib/utils";
 
 const field =
@@ -28,7 +29,9 @@ const field =
 
 export const IssueForm = ({ node, onIssued }: { node: Node; onIssued: (cert: Cert) => void }) => {
   const kinds = canIssue(node);
+  const profiles = useProfiles();
   const [kind, setKind] = useState<CertKind>(kinds[0]);
+  const [profileName, setProfileName] = useState("");
   const [subjectCn, setSubjectCn] = useState("");
   const [sans, setSans] = useState("");
   const [pathLen, setPathLen] = useState("0");
@@ -40,10 +43,18 @@ export const IssueForm = ({ node, onIssued }: { node: Node; onIssued: (cert: Cer
       setError("Subject CN is required.");
       return;
     }
+    const selected = profileName ? getProfile(profileName) : undefined;
+    let eku: string[];
+    if (selected) {
+      eku = selected.extKeyUsage;
+    } else {
+      eku = kind === "leaf" ? ["serverAuth"] : [];
+    }
     const cert = issueCert(node.name, {
-      eku: kind === "leaf" ? ["serverAuth"] : [],
+      eku,
       kind,
       pathLen: kind === "subordinate-ca" ? Number(pathLen) : undefined,
+      profile: profileName || undefined,
       sans: sans
         .split(",")
         .map((s) => s.trim())
@@ -75,6 +86,32 @@ export const IssueForm = ({ node, onIssued }: { node: Node; onIssued: (cert: Cer
           ))}
         </div>
       ) : null}
+
+      <label className="block space-y-1">
+        <span className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
+          Profile
+        </span>
+        <select
+          className={field}
+          onChange={(e) => {
+            const v = e.target.value;
+            setProfileName(v);
+            const p = getProfile(v);
+            if (p) {
+              setValidityDays(String(p.validityDays));
+              if (p.isCA && p.pathLen !== undefined) setPathLen(String(p.pathLen));
+            }
+          }}
+          value={profileName}
+        >
+          <option value="">(none)</option>
+          {profiles.map((p) => (
+            <option key={p.name} value={p.name}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+      </label>
 
       <label className="block space-y-1">
         <span className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
