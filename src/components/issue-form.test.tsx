@@ -41,7 +41,7 @@ describe("IssueForm profile picker", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /^issue$/i }));
     expect(onIssued).toHaveBeenCalledWith(
-      expect.objectContaining({ profile: "TLS Server (LDAPS)" }),
+      expect.objectContaining({ eku: ["server_auth"], profile: "TLS Server (LDAPS)" }),
     );
   });
 });

@@ -43,8 +43,15 @@ export const IssueForm = ({ node, onIssued }: { node: Node; onIssued: (cert: Cer
       setError("Subject CN is required.");
       return;
     }
+    const selected = profileName ? getProfile(profileName) : undefined;
+    let eku: string[];
+    if (selected) {
+      eku = selected.extKeyUsage;
+    } else {
+      eku = kind === "leaf" ? ["serverAuth"] : [];
+    }
     const cert = issueCert(node.name, {
-      eku: kind === "leaf" ? ["serverAuth"] : [],
+      eku,
       kind,
       pathLen: kind === "subordinate-ca" ? Number(pathLen) : undefined,
       profile: profileName || undefined,
