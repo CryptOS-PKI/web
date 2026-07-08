@@ -16,10 +16,50 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+import type { ColumnDef } from "@tanstack/react-table";
+
 import { Link } from "react-router-dom";
 
-import { setEnabled, useAdapters } from "@/lib/adapters";
-import { cn } from "@/lib/utils";
+import { DataTable } from "@/components/data-table/data-table";
+import { type EnrollmentAdapter, setEnabled, useAdapters } from "@/lib/adapters";
+
+const protocolColumns: ColumnDef<EnrollmentAdapter, unknown>[] = [
+  {
+    accessorKey: "name",
+    cell: ({ row }) => (
+      <Link className="text-primary hover:underline" to={`/protocols/${row.original.kind}`}>
+        {row.original.name}
+      </Link>
+    ),
+    header: "Protocol",
+  },
+  { accessorKey: "endpoint", header: "Endpoint" },
+  { accessorKey: "profile", header: "Profile" },
+  {
+    accessorFn: (a) => (a.enabled ? "enabled" : "disabled"),
+    cell: ({ row }) => (
+      <span className={row.original.enabled ? "text-success" : "text-muted-foreground"}>
+        {row.original.enabled ? "enabled" : "disabled"}
+      </span>
+    ),
+    header: "Enabled",
+    id: "enabled",
+  },
+  {
+    cell: ({ row }) => (
+      <button
+        className="text-primary hover:underline"
+        onClick={() => setEnabled(row.original.kind, !row.original.enabled)}
+        type="button"
+      >
+        {row.original.enabled ? `Disable ${row.original.kind}` : `Enable ${row.original.kind}`}
+      </button>
+    ),
+    enableSorting: false,
+    header: "",
+    id: "actions",
+  },
+];
 
 export const ProtocolsPage = () => {
   const adapters = useAdapters();
@@ -33,49 +73,14 @@ export const ProtocolsPage = () => {
         </p>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border bg-card">
-        <table className="w-full text-left font-mono text-sm">
-          <thead className="bg-secondary text-[10.5px] uppercase tracking-wider text-muted-foreground">
-            <tr>
-              <th className="px-4 py-2.5">Protocol</th>
-              <th className="px-4 py-2.5">Endpoint</th>
-              <th className="px-4 py-2.5">Profile</th>
-              <th className="px-4 py-2.5">Enabled</th>
-              <th className="px-4 py-2.5" />
-            </tr>
-          </thead>
-          <tbody>
-            {adapters.map((a) => (
-              <tr className="border-t hover:bg-accent" key={a.kind}>
-                <td className="px-4 py-2.5">
-                  <Link className="text-primary hover:underline" to={`/protocols/${a.kind}`}>
-                    {a.name}
-                  </Link>
-                </td>
-                <td className="px-4 py-2.5 text-muted-foreground">{a.endpoint}</td>
-                <td className="px-4 py-2.5 text-muted-foreground">{a.profile}</td>
-                <td
-                  className={cn(
-                    "px-4 py-2.5 font-semibold",
-                    a.enabled ? "text-success" : "text-muted-foreground",
-                  )}
-                >
-                  {a.enabled ? "enabled" : "disabled"}
-                </td>
-                <td className="px-4 py-2.5">
-                  <button
-                    className="rounded-md border px-2.5 py-1 text-xs hover:bg-secondary"
-                    onClick={() => setEnabled(a.kind, !a.enabled)}
-                    type="button"
-                  >
-                    {a.enabled ? `Disable ${a.kind}` : `Enable ${a.kind}`}
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        columns={protocolColumns}
+        data={adapters}
+        facets={[{ columnId: "enabled", title: "Enabled" }]}
+        initialSort={[{ desc: false, id: "name" }]}
+        searchKeys={["name", "endpoint"]}
+        tableKey="protocols"
+      />
     </section>
   );
 };
