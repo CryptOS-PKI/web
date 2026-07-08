@@ -49,6 +49,22 @@ export const addNode = (node: Node): void => {
   emit();
 };
 
+// The trust chain from the root down to this node, following parentCn. Guards a
+// missing parent link and a cycle so a broken fixture can't loop forever.
+export const chainToRoot = (node: Node): Node[] => {
+  const chain: Node[] = [node];
+  const seen = new Set<string>([node.name]);
+  let current = node;
+  while (current.parentCn) {
+    const parent = getNodeByCn(current.parentCn);
+    if (!parent || seen.has(parent.name)) break;
+    chain.unshift(parent);
+    seen.add(parent.name);
+    current = parent;
+  }
+  return chain;
+};
+
 // Test-only: restore the seeded fixture between tests.
 export const __resetNodes = (): void => {
   nodes = [...mockNodes];
