@@ -20,11 +20,15 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { __resetEnrollments, enrollmentsList } from "@/lib/enrollment";
+import { __resetEnrollments, approveEnrollment, enrollmentsList } from "@/lib/enrollment";
+import { __resetNodes } from "@/lib/nodes";
 import { EnrollmentPage } from "@/pages/enrollment";
 
 describe("EnrollmentPage", () => {
-  beforeEach(() => __resetEnrollments());
+  beforeEach(() => {
+    __resetNodes();
+    __resetEnrollments();
+  });
 
   it("lists a pending request linking to its detail", () => {
     render(
@@ -48,5 +52,32 @@ describe("EnrollmentPage", () => {
     const before = enrollmentsList().length;
     fireEvent.click(screen.getByRole("button", { name: /simulate/i }));
     expect(enrollmentsList().length).toBe(before + 1);
+  });
+
+  it("narrows to PENDING via the Status facet, hiding an APPROVED row", () => {
+    approveEnrollment("enr-0001"); // parent G1 established -> approvable
+    const approved = enrollmentsList().find((r) => r.status === "APPROVED")!;
+    const pending = enrollmentsList().find((r) => r.status === "PENDING")!;
+
+    render(
+      <MemoryRouter>
+        <EnrollmentPage />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText(approved.proposedName)).toBeInTheDocument();
+
+    const facetToggle = screen
+      .getAllByRole("button", { name: /status/i })
+      .find((button) => !button.closest("table"));
+    if (!facetToggle) throw new Error("facet toggle not found");
+    fireEvent.click(facetToggle);
+    const pendingOption = screen
+      .getAllByText("PENDING")
+      .find((element) => !element.closest("table"));
+    if (!pendingOption) throw new Error("PENDING option not found");
+    fireEvent.click(pendingOption);
+
+    expect(screen.getByText(pending.proposedName)).toBeInTheDocument();
+    expect(screen.queryByText(approved.proposedName)).not.toBeInTheDocument();
   });
 });

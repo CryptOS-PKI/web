@@ -16,22 +16,25 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import { useState } from "react";
+import type { ColumnDef } from "@tanstack/react-table";
+
 import { Link } from "react-router-dom";
 
+import { DataTable } from "@/components/data-table/data-table";
 import { Button } from "@/components/ui/button";
-import { type EnrollmentStatus, requestEnrollment, useEnrollments } from "@/lib/enrollment";
+import {
+  type EnrollmentRequest,
+  type EnrollmentStatus,
+  requestEnrollment,
+  useEnrollments,
+} from "@/lib/enrollment";
 import { roleLabels } from "@/lib/mock";
-import { cn } from "@/lib/utils";
 
-const statusTone: Record<EnrollmentStatus, string> = {
+const STATUS_TONE: Record<EnrollmentStatus, string> = {
   APPROVED: "text-success",
   PENDING: "text-warning",
   REJECTED: "text-destructive",
 };
-
-type Filter = "ALL" | EnrollmentStatus;
-const filters: Filter[] = ["PENDING", "APPROVED", "REJECTED", "ALL"];
 
 // A deterministic simulated request (varied by the current count, no RNG).
 const simulated = (n: number) => ({
@@ -43,10 +46,34 @@ const simulated = (n: number) => ({
   role: "issuing" as const,
 });
 
+const enrollmentColumns: ColumnDef<EnrollmentRequest, unknown>[] = [
+  {
+    accessorKey: "proposedName",
+    cell: ({ row }) => (
+      <Link className="text-primary hover:underline" to={`/enrollment/${row.original.id}`}>
+        {row.original.proposedName}
+      </Link>
+    ),
+    header: "Proposed name",
+  },
+  { accessorFn: (r) => roleLabels[r.role], header: "Role", id: "role" },
+  { accessorKey: "parentCn", header: "Parent CA" },
+  {
+    accessorFn: (r) => r.requestedAt.slice(0, 10),
+    header: "Requested",
+    id: "requested",
+  },
+  {
+    accessorKey: "status",
+    cell: ({ row }) => (
+      <span className={STATUS_TONE[row.original.status]}>{row.original.status}</span>
+    ),
+    header: "Status",
+  },
+];
+
 export const EnrollmentPage = () => {
   const requests = useEnrollments();
-  const [filter, setFilter] = useState<Filter>("PENDING");
-  const rows = filter === "ALL" ? requests : requests.filter((r) => r.status === filter);
   const pending = requests.filter((r) => r.status === "PENDING").length;
 
   return (
@@ -65,60 +92,17 @@ export const EnrollmentPage = () => {
         </Button>
       </div>
 
-      <div className="flex gap-1.5">
-        {filters.map((f) => (
-          <button
-            className={cn(
-              "rounded-md border px-2.5 py-1 font-mono text-[11px] uppercase tracking-wider",
-              filter === f
-                ? "bg-secondary text-foreground"
-                : "text-muted-foreground hover:bg-secondary",
-            )}
-            key={f}
-            onClick={() => setFilter(f)}
-            type="button"
-          >
-            {f.toLowerCase()}
-          </button>
-        ))}
-      </div>
-
-      {rows.length === 0 ? (
-        <p className="font-mono text-sm text-muted-foreground">No requests.</p>
-      ) : (
-        <div className="overflow-x-auto rounded-xl border bg-card">
-          <table className="w-full text-left font-mono text-sm">
-            <thead className="bg-secondary text-[10.5px] uppercase tracking-wider text-muted-foreground">
-              <tr>
-                <th className="px-4 py-2.5">Proposed name</th>
-                <th className="px-4 py-2.5">Role</th>
-                <th className="px-4 py-2.5">Parent CA</th>
-                <th className="px-4 py-2.5">Requested</th>
-                <th className="px-4 py-2.5">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr className="border-t hover:bg-accent" key={r.id}>
-                  <td className="px-4 py-2.5">
-                    <Link className="text-primary hover:underline" to={`/enrollment/${r.id}`}>
-                      {r.proposedName}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-2.5 text-muted-foreground">{roleLabels[r.role]}</td>
-                  <td className="px-4 py-2.5 text-muted-foreground">{r.parentCn}</td>
-                  <td className="px-4 py-2.5 text-muted-foreground">
-                    {r.requestedAt.slice(0, 10)}
-                  </td>
-                  <td className={cn("px-4 py-2.5 font-semibold", statusTone[r.status])}>
-                    {r.status}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <DataTable
+        columns={enrollmentColumns}
+        data={requests}
+        facets={[
+          { columnId: "status", title: "Status" },
+          { columnId: "role", title: "Role" },
+        ]}
+        initialSort={[{ desc: true, id: "requested" }]}
+        searchKeys={["proposedName", "parentCn"]}
+        tableKey="enroll"
+      />
     </section>
   );
 };
