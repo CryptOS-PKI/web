@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 
@@ -37,5 +37,18 @@ describe("RootPage", () => {
       "href",
       "/root/acme-root-02",
     );
+  });
+
+  it("search filters to matching root CAs only", () => {
+    render(
+      <MemoryRouter>
+        <RootPage />
+      </MemoryRouter>,
+    );
+    fireEvent.change(screen.getByPlaceholderText(/search/i), {
+      target: { value: "acme-root-01" },
+    });
+    expect(screen.getByRole("link", { name: /acme-root-01/ })).toBeInTheDocument();
+    expect(screen.queryByText("acme-root-02")).not.toBeInTheDocument();
   });
 });

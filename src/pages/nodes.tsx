@@ -16,12 +16,42 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+import type { ColumnDef } from "@tanstack/react-table";
+
 import { Link } from "react-router-dom";
 
+import type { Node } from "@/lib/mock";
+
+import { DataTable } from "@/components/data-table/data-table";
 import { IdentityBadge } from "@/components/identity-badge";
 import { certsFor } from "@/lib/certs";
 import { roleLabels } from "@/lib/mock";
 import { useNodes } from "@/lib/nodes";
+
+const nodeColumns: ColumnDef<Node, unknown>[] = [
+  {
+    accessorKey: "name",
+    cell: ({ row }) => (
+      <Link className="text-primary hover:underline" to={`/nodes/${row.original.name}`}>
+        {row.original.name}
+      </Link>
+    ),
+    header: "Name",
+  },
+  { accessorFn: (n) => roleLabels[n.role], header: "Role", id: "role" },
+  {
+    accessorKey: "identityState",
+    cell: ({ row }) => <IdentityBadge state={row.original.identityState} />,
+    header: "Identity",
+  },
+  {
+    accessorFn: (n) => certsFor(n.name).length,
+    enableSorting: true,
+    header: "Certs",
+    id: "certs",
+  },
+  { cell: () => "\u203A", enableSorting: false, header: "", id: "chevron" },
+];
 
 // Operational nodes only -- the Root CA has its own surface at /root.
 export const NodesPage = () => {
@@ -34,36 +64,17 @@ export const NodesPage = () => {
         <p className="text-sm text-muted-foreground">{nodes.length} operational nodes</p>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border bg-card">
-        <table className="w-full text-left font-mono text-sm">
-          <thead className="bg-secondary text-[10.5px] uppercase tracking-wider text-muted-foreground">
-            <tr>
-              <th className="px-4 py-2.5">Name</th>
-              <th className="px-4 py-2.5">Role</th>
-              <th className="px-4 py-2.5">Identity</th>
-              <th className="px-4 py-2.5">Certs</th>
-              <th className="px-4 py-2.5" />
-            </tr>
-          </thead>
-          <tbody>
-            {nodes.map((n) => (
-              <tr className="border-t hover:bg-accent" key={n.name}>
-                <td className="px-4 py-2.5">
-                  <Link className="text-primary hover:underline" to={`/nodes/${n.name}`}>
-                    {n.name}
-                  </Link>
-                </td>
-                <td className="px-4 py-2.5 text-muted-foreground">{roleLabels[n.role]}</td>
-                <td className="px-4 py-2.5">
-                  <IdentityBadge state={n.identityState} />
-                </td>
-                <td className="px-4 py-2.5">{certsFor(n.name).length}</td>
-                <td className="px-4 py-2.5 text-right text-muted-foreground">{"\u203A"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        columns={nodeColumns}
+        data={nodes}
+        facets={[
+          { columnId: "role", title: "Role" },
+          { columnId: "identityState", title: "Identity" },
+        ]}
+        initialSort={[{ desc: false, id: "name" }]}
+        searchKeys={["name"]}
+        tableKey="nodes"
+      />
     </section>
   );
 };
