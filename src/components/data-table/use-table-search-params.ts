@@ -21,7 +21,7 @@ import type { ColumnFiltersState, PaginationState, SortingState } from "@tanstac
 import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 
-const RESERVED = new Set(["page", "q", "sort"]);
+const RESERVED = new Set(["page", "q", "size", "sort"]);
 
 export const useTableSearchParams = (
   tableKey: string,
@@ -40,7 +40,9 @@ export const useTableSearchParams = (
 
   const pageRaw = Number(params.get(key("page")));
   const pageIndex = Number.isInteger(pageRaw) && pageRaw > 1 ? pageRaw - 1 : 0;
-  const pagination: PaginationState = { pageIndex, pageSize };
+  const sizeRaw = Number(params.get(key("size")));
+  const effectivePageSize = Number.isInteger(sizeRaw) && sizeRaw > 0 ? sizeRaw : pageSize;
+  const pagination: PaginationState = { pageIndex, pageSize: effectivePageSize };
 
   const columnFilters: ColumnFiltersState = [];
   for (const [k, value] of params.entries()) {
@@ -89,8 +91,13 @@ export const useTableSearchParams = (
       mutate((n) => {
         if (p.pageIndex > 0) n.set(key("page"), String(p.pageIndex + 1));
         else n.delete(key("page"));
+        if (p.pageSize === pageSize) {
+          n.delete(key("size"));
+        } else {
+          n.set(key("size"), String(p.pageSize));
+        }
       }),
-    [mutate, key],
+    [mutate, key, pageSize],
   );
 
   const setColumnFilters = useCallback(

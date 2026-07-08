@@ -42,7 +42,7 @@ describe("NodesPage", () => {
         <NodesPage />
       </MemoryRouter>,
     );
-    fireEvent.change(screen.getByPlaceholderText(/search/i), {
+    fireEvent.change(screen.getByLabelText("Filter name"), {
       target: { value: "acme-issuing-01" },
     });
     expect(screen.getByRole("link", { name: /acme-issuing-01/ })).toBeInTheDocument();

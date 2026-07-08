@@ -66,16 +66,7 @@ describe("EnrollmentPage", () => {
     );
     expect(screen.getByText(approved.proposedName)).toBeInTheDocument();
 
-    const facetToggle = screen
-      .getAllByRole("button", { name: /status/i })
-      .find((button) => !button.closest("table"));
-    if (!facetToggle) throw new Error("facet toggle not found");
-    fireEvent.click(facetToggle);
-    const pendingOption = screen
-      .getAllByText("PENDING")
-      .find((element) => !element.closest("table"));
-    if (!pendingOption) throw new Error("PENDING option not found");
-    fireEvent.click(pendingOption);
+    fireEvent.change(screen.getByLabelText("Filter Status"), { target: { value: "PENDING" } });
 
     expect(screen.getByText(pending.proposedName)).toBeInTheDocument();
     expect(screen.queryByText(approved.proposedName)).not.toBeInTheDocument();

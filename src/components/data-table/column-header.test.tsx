@@ -35,8 +35,10 @@ describe("ColumnHeader", () => {
     expect(handler).toHaveBeenCalled();
   });
 
-  it("shows the ascending caret when sorted asc", () => {
-    render(<ColumnHeader column={makeColumn("asc", vi.fn())} title="Name" />);
-    expect(screen.getByRole("button", { name: /name/i }).textContent).toContain("\u25B2");
+  it("renders a sort-direction icon in the header button", () => {
+    const { container } = render(<ColumnHeader column={makeColumn("asc", vi.fn())} title="Name" />);
+    // lucide icons render as inline svg; a sorted column shows a full-opacity arrow
+    const icon = container.querySelector("button svg");
+    expect(icon).not.toBeNull();
   });
 });

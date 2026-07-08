@@ -45,7 +45,7 @@ describe("RootPage", () => {
         <RootPage />
       </MemoryRouter>,
     );
-    fireEvent.change(screen.getByPlaceholderText(/search/i), {
+    fireEvent.change(screen.getByLabelText("Filter name"), {
       target: { value: "acme-root-01" },
     });
     expect(screen.getByRole("link", { name: /acme-root-01/ })).toBeInTheDocument();

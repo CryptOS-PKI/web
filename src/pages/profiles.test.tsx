@@ -50,14 +50,7 @@ describe("ProfilesPage", () => {
     );
     expect(screen.getByRole("link", { name: /domain controller/i })).toBeInTheDocument();
 
-    const facetToggle = screen
-      .getAllByRole("button", { name: /^key alg$/i })
-      .find((button) => !button.closest("table"));
-    if (!facetToggle) throw new Error("facet toggle not found");
-    fireEvent.click(facetToggle);
-    const rsaOption = screen.getAllByText("RSA-3072").find((element) => !element.closest("table"));
-    if (!rsaOption) throw new Error("RSA-3072 option not found");
-    fireEvent.click(rsaOption);
+    fireEvent.change(screen.getByLabelText("Filter Key alg"), { target: { value: "RSA-3072" } });
 
     expect(screen.queryByRole("link", { name: /domain controller/i })).not.toBeInTheDocument();
   });

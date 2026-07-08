@@ -18,7 +18,7 @@ limitations under the License.
 
 import type { ColumnDef } from "@tanstack/react-table";
 
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 
@@ -53,32 +53,25 @@ const renderTable = (over: Partial<React.ComponentProps<typeof DataTable<Row>>> 
     </MemoryRouter>,
   );
 
-const bodyRowCount = () => within(screen.getByRole("table")).getAllByRole("row").length - 1; // minus header row
+const bodyRowCount = () => screen.getByRole("table").querySelectorAll("tbody tr").length;
 
 describe("DataTable", () => {
-  it("renders all rows within the first page", () => {
+  it("renders rows limited to the first page", () => {
     renderTable();
     expect(screen.getByText("alpha")).toBeInTheDocument();
     expect(bodyRowCount()).toBe(2); // pageSize 2
   });
 
-  it("filters by global search", () => {
+  it("filters by a per-column text input", () => {
     renderTable();
-    fireEvent.change(screen.getByPlaceholderText(/search/i), { target: { value: "brav" } });
+    fireEvent.change(screen.getByLabelText("Filter name"), { target: { value: "brav" } });
     expect(screen.getByText("bravo")).toBeInTheDocument();
     expect(screen.queryByText("alpha")).not.toBeInTheDocument();
   });
 
-  it("narrows by a faceted filter", () => {
+  it("narrows by a per-column select filter", () => {
     renderTable();
-    const facetToggle = screen
-      .getAllByRole("button", { name: /kind/i })
-      .find((button) => !button.closest("table"));
-    if (!facetToggle) throw new Error("facet toggle not found");
-    fireEvent.click(facetToggle);
-    const caOption = screen.getAllByText("ca").find((element) => !element.closest("table"));
-    if (!caOption) throw new Error("ca option not found");
-    fireEvent.click(caOption);
+    fireEvent.change(screen.getByLabelText("Filter Kind"), { target: { value: "ca" } });
     expect(screen.getByText("bravo")).toBeInTheDocument();
     expect(screen.queryByText("alpha")).not.toBeInTheDocument();
   });
@@ -86,8 +79,8 @@ describe("DataTable", () => {
   it("sorts when a header is clicked", () => {
     renderTable({ pageSize: 25 });
     fireEvent.click(screen.getByRole("button", { name: /size/i }));
-    const rows = within(screen.getByRole("table")).getAllByRole("row").slice(1);
-    expect(within(rows[0]).getByText("bravo")).toBeInTheDocument(); // size 1 first
+    const rows = screen.getByRole("table").querySelectorAll("tbody tr");
+    expect(rows[0].textContent).toContain("bravo"); // size 1 first (ascending)
   });
 
   it("paginates and moves to the next page", () => {
@@ -97,41 +90,28 @@ describe("DataTable", () => {
     expect(screen.getByText("charlie")).toBeInTheDocument();
   });
 
-  it("hides the pager when rows fit one page", () => {
+  it("always shows the pagination footer", () => {
     renderTable({ pageSize: 25 });
-    expect(screen.queryByRole("button", { name: "Next" })).not.toBeInTheDocument();
+    // one page of rows, but the footer (and a disabled Next) is always present
+    expect(screen.getByRole("button", { name: "Next" })).toBeInTheDocument();
+    expect(screen.getByText(/page 1 of 1/i)).toBeInTheDocument();
   });
 
   it("shows an empty state when nothing matches", () => {
     renderTable();
-    fireEvent.change(screen.getByPlaceholderText(/search/i), { target: { value: "zzz" } });
+    fireEvent.change(screen.getByLabelText("Filter name"), { target: { value: "zzz" } });
     expect(screen.getByText(/no matching rows/i)).toBeInTheDocument();
   });
 
-  it("keeps all facet options selectable even when another facet excludes them", () => {
-    // size=1 matches only bravo (kind "ca"); the Kind facet must still offer
-    // "leaf" so the user is never locked out of switching filters.
-    render(
-      <MemoryRouter initialEntries={["/?t.size=1"]}>
-        <DataTable
-          columns={columns}
-          data={data}
-          facets={[
-            { columnId: "kind", title: "Kind" },
-            { columnId: "size", title: "Size" },
-          ]}
-          pageSize={25}
-          tableKey="t"
-        />
-      </MemoryRouter>,
+  it("lists every value in a select filter regardless of other active filters", () => {
+    renderTable({ pageSize: 25 });
+    // filter name to only bravo (kind "ca"); the Kind select must still offer "leaf"
+    fireEvent.change(screen.getByLabelText("Filter name"), { target: { value: "bravo" } });
+    const kindSelect = screen.getByLabelText("Filter Kind");
+    const optionValues = [...kindSelect.querySelectorAll("option")].map((o) =>
+      o.getAttribute("value"),
     );
-    const kindToggle = screen
-      .getAllByRole("button", { name: /kind/i })
-      .find((button) => !button.closest("table"));
-    if (!kindToggle) throw new Error("kind facet toggle not found");
-    fireEvent.click(kindToggle);
-    // "leaf" is absent from the table body (only the ca row shows), so this
-    // match is the facet option, proving it is still offered.
-    expect(screen.getByText("leaf")).toBeInTheDocument();
+    expect(optionValues).toContain("leaf");
+    expect(optionValues).toContain("ca");
   });
 });

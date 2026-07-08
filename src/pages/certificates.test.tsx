@@ -65,7 +65,7 @@ describe("CertificatesPage", () => {
         <CertificatesPage />
       </MemoryRouter>,
     );
-    fireEvent.change(screen.getByPlaceholderText(/search/i), {
+    fireEvent.change(screen.getByLabelText("Filter subjectCn"), {
       target: { value: "ldap-a.acme.example" },
     });
     expect(screen.getByRole("link", { name: "ldap-a.acme.example" })).toBeInTheDocument();

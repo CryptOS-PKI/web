@@ -26,16 +26,23 @@ const makeTable = (over: Partial<Record<string, unknown>> = {}) =>
     getCanNextPage: () => true,
     getCanPreviousPage: () => false,
     getFilteredRowModel: () => ({ rows: Array.from({ length: 50 }) }),
+    getPageCount: () => 2,
     getState: () => ({ pagination: { pageIndex: 0, pageSize: 25 } }),
     nextPage: vi.fn(),
     previousPage: vi.fn(),
+    setPageSize: vi.fn(),
     ...over,
   }) as never;
 
 describe("Pagination", () => {
   it("renders the current range and total", () => {
     render(<Pagination table={makeTable()} />);
-    expect(screen.getByText(/showing 1\u201325 of 50/)).toBeInTheDocument();
+    expect(screen.getByText(/1\u201325 of 50/)).toBeInTheDocument();
+  });
+
+  it("renders the current page of the total page count", () => {
+    render(<Pagination table={makeTable()} />);
+    expect(screen.getByText(/Page 1 of 2/)).toBeInTheDocument();
   });
 
   it("disables Prev at the first page", () => {
@@ -48,5 +55,12 @@ describe("Pagination", () => {
     render(<Pagination table={makeTable({ nextPage: next })} />);
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
     expect(next).toHaveBeenCalled();
+  });
+
+  it("changes the page size via the rows-per-page select", () => {
+    const setPageSize = vi.fn();
+    render(<Pagination table={makeTable({ setPageSize })} />);
+    fireEvent.change(screen.getByLabelText(/rows per page/i), { target: { value: "20" } });
+    expect(setPageSize).toHaveBeenCalledWith(20);
   });
 });

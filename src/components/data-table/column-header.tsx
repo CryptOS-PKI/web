@@ -18,6 +18,10 @@ limitations under the License.
 
 import type { Column } from "@tanstack/react-table";
 
+import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
+
+import { cn } from "@/lib/utils";
+
 export const ColumnHeader = <T,>({
   column,
   title,
@@ -27,17 +31,19 @@ export const ColumnHeader = <T,>({
 }) => {
   const sorted = column.getIsSorted();
   // eslint-disable-next-line unicorn/no-nested-ternary
-  const caret = sorted === "asc" ? "\u25B2" : sorted === "desc" ? "\u25BC" : "\u2195";
+  const SortIcon = sorted === "asc" ? ArrowUp : sorted === "desc" ? ArrowDown : ChevronsUpDown;
   return (
     <button
-      className="inline-flex items-center gap-1 hover:text-foreground"
+      className={cn(
+        "-ml-2 inline-flex h-7 items-center gap-1 rounded-md px-2 uppercase tracking-wider",
+        "hover:bg-accent hover:text-foreground",
+        sorted && "text-foreground",
+      )}
       onClick={column.getToggleSortingHandler()}
       type="button"
     >
-      {title}
-      <span aria-hidden className="text-[9px] opacity-60">
-        {caret}
-      </span>
+      <span>{title}</span>
+      <SortIcon className={cn("size-3.5", sorted ? "opacity-100" : "opacity-40")} />
     </button>
   );
 };

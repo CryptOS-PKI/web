@@ -16,13 +16,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import type { ColumnDef, ColumnFiltersState, FilterFn, SortingState } from "@tanstack/react-table";
+import type {
+  Column,
+  ColumnDef,
+  ColumnFiltersState,
+  FilterFn,
+  SortingState,
+} from "@tanstack/react-table";
 
 import {
   flexRender,
   getCoreRowModel,
-  getFacetedRowModel,
-  getFacetedUniqueValues,
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
@@ -33,7 +37,6 @@ import { useMemo } from "react";
 import { Input } from "@/components/ui/input";
 
 import { ColumnHeader } from "./column-header";
-import { FacetedFilter } from "./faceted-filter";
 import { Pagination } from "./pagination";
 import { useTableSearchParams } from "./use-table-search-params";
 
@@ -43,8 +46,16 @@ export type FacetConfig = {
   title: string;
 };
 
-const facetFilterFn: FilterFn<unknown> = (row, columnId, value) =>
+// A facet select stores its single choice as a one-element array; a text filter
+// stores the query the same way. Both filter functions read that shape.
+const selectFilterFn: FilterFn<unknown> = (row, columnId, value) =>
   !Array.isArray(value) || value.length === 0 || value.includes(String(row.getValue(columnId)));
+
+const textFilterFn: FilterFn<unknown> = (row, columnId, value) => {
+  const query = Array.isArray(value) ? value[0] : value;
+  if (!query) return true;
+  return String(row.getValue(columnId)).toLowerCase().includes(String(query).toLowerCase());
+};
 
 const columnId = (col: ColumnDef<unknown, unknown>) =>
   col.id ?? ("accessorKey" in col ? String(col.accessorKey) : "");
@@ -54,9 +65,8 @@ export const DataTable = <T,>({
   data,
   facets = [],
   initialSort = [],
-  pageSize = 25,
+  pageSize = 10,
   searchKeys = [],
-  searchPlaceholder = "search...",
   tableKey,
 }: {
   columns: ColumnDef<T, unknown>[];
@@ -65,46 +75,45 @@ export const DataTable = <T,>({
   initialSort?: SortingState;
   pageSize?: number;
   searchKeys?: string[];
-  searchPlaceholder?: string;
   tableKey: string;
 }) => {
   const url = useTableSearchParams(tableKey, pageSize, initialSort);
 
-  const facetIds = useMemo(() => new Set(facets.map((f) => f.columnId)), [facets]);
+  const facetById = useMemo(() => new Map(facets.map((f) => [f.columnId, f])), [facets]);
   const searchSet = useMemo(() => new Set(searchKeys), [searchKeys]);
+  const hasFilters = facets.length > 0 || searchKeys.length > 0;
 
   const preparedColumns = useMemo(
     () =>
-      columns.map((col) => {
+      columns.map((col): ColumnDef<T, unknown> => {
         const id = columnId(col as ColumnDef<unknown, unknown>);
-        return {
-          ...col,
-          enableGlobalFilter: searchSet.has(id),
-          ...(facetIds.has(id) ? { filterFn: facetFilterFn } : {}),
-        } as ColumnDef<T, unknown>;
+        if (facetById.has(id))
+          return { ...col, enableColumnFilter: true, filterFn: selectFilterFn } as ColumnDef<
+            T,
+            unknown
+          >;
+        if (searchSet.has(id))
+          return { ...col, enableColumnFilter: true, filterFn: textFilterFn } as ColumnDef<
+            T,
+            unknown
+          >;
+        return { ...col, enableColumnFilter: false } as ColumnDef<T, unknown>;
       }),
-    [columns, facetIds, searchSet],
+    [columns, facetById, searchSet],
   );
 
   const table = useReactTable({
     columns: preparedColumns,
     data,
     getCoreRowModel: getCoreRowModel(),
-    getFacetedRowModel: getFacetedRowModel(),
-    getFacetedUniqueValues: getFacetedUniqueValues(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    globalFilterFn: "includesString",
     onColumnFiltersChange: (updater) =>
       url.setColumnFilters(
         typeof updater === "function"
           ? (updater(url.columnFilters) as ColumnFiltersState)
           : updater,
-      ),
-    onGlobalFilterChange: (updater) =>
-      url.setGlobalFilter(
-        typeof updater === "function" ? (updater(url.globalFilter) as string) : updater,
       ),
     onPaginationChange: (updater) =>
       url.setPagination(typeof updater === "function" ? updater(url.pagination) : updater),
@@ -113,66 +122,68 @@ export const DataTable = <T,>({
     sortDescFirst: false,
     state: {
       columnFilters: url.columnFilters,
-      globalFilter: url.globalFilter,
       pagination: url.pagination,
       sorting: url.sorting,
     },
   });
 
   const rows = table.getRowModel().rows;
-  const totalFiltered = table.getFilteredRowModel().rows.length;
   const colCount = table.getAllLeafColumns().length;
+
+  const distinctValues = (id: string) => {
+    const values = new Set<string>();
+    for (const row of table.getCoreRowModel().flatRows) {
+      const raw = row.getValue(id);
+      if (raw == null || raw === "") continue;
+      values.add(String(raw));
+    }
+    // eslint-disable-next-line unicorn/no-array-sort
+    return [...values].sort((a, b) => a.localeCompare(b));
+  };
+
+  const renderFilter = (col: Column<T, unknown>) => {
+    const selected = (col.getFilterValue() as string[] | undefined) ?? [];
+    const facet = facetById.get(col.id);
+    if (facet) {
+      return (
+        <select
+          aria-label={`Filter ${facet.title}`}
+          className="h-7 w-full rounded-md border border-input bg-background px-1.5 text-foreground"
+          onChange={(event) =>
+            col.setFilterValue(event.target.value ? [event.target.value] : undefined)
+          }
+          value={selected[0] ?? ""}
+        >
+          <option value="">All</option>
+          {distinctValues(col.id).map((value) => (
+            <option key={value} value={value}>
+              {facet.optionLabel ? facet.optionLabel(value) : value}
+            </option>
+          ))}
+        </select>
+      );
+    }
+    if (searchSet.has(col.id)) {
+      return (
+        <Input
+          aria-label={`Filter ${col.id}`}
+          className="h-7"
+          onChange={(event) =>
+            col.setFilterValue(event.target.value ? [event.target.value] : undefined)
+          }
+          placeholder="Filter..."
+          value={selected[0] ?? ""}
+        />
+      );
+    }
+    return null;
+  };
 
   return (
     <div className="space-y-3">
-      {(searchKeys.length > 0 || facets.length > 0) && (
-        <div className="flex flex-wrap items-center gap-2">
-          {searchKeys.length > 0 && (
-            <Input
-              className="max-w-56"
-              onChange={(e) => table.setGlobalFilter(e.target.value)}
-              placeholder={searchPlaceholder}
-              value={url.globalFilter}
-            />
-          )}
-          {facets.map((f) => {
-            const column = table.getColumn(f.columnId);
-            if (!column) return null;
-            // Options list every distinct value in the column across ALL rows
-            // (the unfiltered core model), never just the cross-filtered subset,
-            // so an active filter on one facet can't hide selectable values in
-            // another. Counts are totals.
-            const counts = new Map<string, number>();
-            for (const row of table.getCoreRowModel().flatRows) {
-              const raw = row.getValue(f.columnId);
-              if (raw == null || raw === "") continue;
-              const value = String(raw);
-              counts.set(value, (counts.get(value) ?? 0) + 1);
-            }
-            const options = [...counts.entries()]
-              // eslint-disable-next-line unicorn/no-array-sort
-              .sort((a, b) => a[0].localeCompare(b[0]))
-              .map(([value, count]) => ({
-                count,
-                label: f.optionLabel ? f.optionLabel(value) : value,
-                value,
-              }));
-            return (
-              <FacetedFilter
-                key={f.columnId}
-                onChange={(values) => column.setFilterValue(values.length > 0 ? values : undefined)}
-                options={options}
-                selected={(column.getFilterValue() as string[]) ?? []}
-                title={f.title}
-              />
-            );
-          })}
-        </div>
-      )}
-
       <div className="overflow-x-auto rounded-xl border bg-card">
         <table className="w-full text-left font-mono text-xs">
-          <thead className="bg-secondary text-[10.5px] uppercase tracking-wider text-muted-foreground">
+          <thead className="bg-secondary text-[10.5px] text-muted-foreground">
             {table.getHeaderGroups().map((hg) => (
               <tr key={hg.id}>
                 {hg.headers.map((h) => {
@@ -180,7 +191,9 @@ export const DataTable = <T,>({
                   const headerCell = h.isPlaceholder ? null : h.column.getCanSort() ? (
                     <ColumnHeader column={h.column} title={String(h.column.columnDef.header)} />
                   ) : (
-                    flexRender(h.column.columnDef.header, h.getContext())
+                    <span className="uppercase tracking-wider">
+                      {flexRender(h.column.columnDef.header, h.getContext())}
+                    </span>
                   );
                   return (
                     <th className="px-3 py-2" key={h.id}>
@@ -190,6 +203,15 @@ export const DataTable = <T,>({
                 })}
               </tr>
             ))}
+            {hasFilters && (
+              <tr className="border-t border-border/60">
+                {table.getVisibleLeafColumns().map((col) => (
+                  <th className="px-3 pb-2" key={col.id}>
+                    {renderFilter(col)}
+                  </th>
+                ))}
+              </tr>
+            )}
           </thead>
           <tbody>
             {rows.length === 0 ? (
@@ -213,7 +235,7 @@ export const DataTable = <T,>({
         </table>
       </div>
 
-      {totalFiltered > pageSize && <Pagination table={table} />}
+      <Pagination table={table} />
     </div>
   );
 };

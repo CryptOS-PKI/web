@@ -33,9 +33,8 @@ describe("AuditPage", () => {
       </MemoryRouter>,
     );
     const newest = auditList()[0];
-    const rows = screen.getAllByRole("row");
-    // rows[0] is the header row
-    expect(within(rows[1]).getByText(newest.summary)).toBeInTheDocument();
+    const [firstBody] = [...screen.getByRole("table").querySelectorAll("tbody tr")];
+    expect(within(firstBody as HTMLElement).getByText(newest.summary)).toBeInTheDocument();
 
     expect(screen.getByText(/Enabled ACME/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Enabled ACME/i })).toHaveAttribute(
@@ -52,14 +51,7 @@ describe("AuditPage", () => {
     );
     expect(screen.getByText(/Revoked svc-9/i)).toBeInTheDocument();
 
-    const facetToggle = screen
-      .getAllByRole("button", { name: /^kind$/i })
-      .find((button) => !button.closest("table"));
-    if (!facetToggle) throw new Error("facet toggle not found");
-    fireEvent.click(facetToggle);
-    const issuedOption = screen.getAllByText("issued").find((element) => !element.closest("table"));
-    if (!issuedOption) throw new Error("issued option not found");
-    fireEvent.click(issuedOption);
+    fireEvent.change(screen.getByLabelText("Filter Kind"), { target: { value: "issued" } });
 
     expect(screen.getByText(/Issued leaf svc-1/i)).toBeInTheDocument();
     expect(screen.queryByText(/Revoked svc-9/i)).not.toBeInTheDocument();

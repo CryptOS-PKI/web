@@ -59,16 +59,7 @@ describe("CertInventory", () => {
     );
     expect(screen.getByText(valid.subjectCn)).toBeInTheDocument();
 
-    const facetToggle = screen
-      .getAllByRole("button", { name: /status/i })
-      .find((button) => !button.closest("table"));
-    if (!facetToggle) throw new Error("facet toggle not found");
-    fireEvent.click(facetToggle);
-    const revokedOption = screen
-      .getAllByText("REVOKED")
-      .find((element) => !element.closest("table"));
-    if (!revokedOption) throw new Error("REVOKED option not found");
-    fireEvent.click(revokedOption);
+    fireEvent.change(screen.getByLabelText("Filter Status"), { target: { value: "REVOKED" } });
 
     expect(screen.getByText(revoked.subjectCn)).toBeInTheDocument();
     expect(screen.queryByText(valid.subjectCn)).not.toBeInTheDocument();
