@@ -16,10 +16,39 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+import type { ColumnDef } from "@tanstack/react-table";
+
 import { Link } from "react-router-dom";
 
+import { DataTable } from "@/components/data-table/data-table";
 import { Button } from "@/components/ui/button";
-import { useProfiles } from "@/lib/profiles";
+import { type CertProfile, useProfiles } from "@/lib/profiles";
+
+const profileColumns: ColumnDef<CertProfile, unknown>[] = [
+  {
+    accessorKey: "name",
+    cell: ({ row }) => (
+      <Link className="text-primary hover:underline" to={`/profiles/${row.original.name}`}>
+        {row.original.name}
+      </Link>
+    ),
+    header: "Name",
+  },
+  { accessorKey: "keyAlg", header: "Key alg" },
+  {
+    accessorFn: (p) => p.validityDays,
+    cell: ({ row }) => `${row.original.validityDays}d`,
+    header: "Validity",
+    id: "validity",
+  },
+  { accessorFn: (p) => (p.isCA ? "yes" : "no"), header: "CA", id: "ca" },
+  {
+    accessorFn: (p) => p.extKeyUsage.join(", ") || "\u2014",
+    enableSorting: false,
+    header: "Ext key usage",
+    id: "eku",
+  },
+];
 
 export const ProfilesPage = () => {
   const profiles = useProfiles();
@@ -36,36 +65,17 @@ export const ProfilesPage = () => {
         </Button>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border bg-card">
-        <table className="w-full text-left font-mono text-sm">
-          <thead className="bg-secondary text-[10.5px] uppercase tracking-wider text-muted-foreground">
-            <tr>
-              <th className="px-4 py-2.5">Name</th>
-              <th className="px-4 py-2.5">Key alg</th>
-              <th className="px-4 py-2.5">Validity</th>
-              <th className="px-4 py-2.5">CA</th>
-              <th className="px-4 py-2.5">Ext key usage</th>
-            </tr>
-          </thead>
-          <tbody>
-            {profiles.map((p) => (
-              <tr className="border-t hover:bg-accent" key={p.name}>
-                <td className="px-4 py-2.5">
-                  <Link className="text-primary hover:underline" to={`/profiles/${p.name}`}>
-                    {p.name}
-                  </Link>
-                </td>
-                <td className="px-4 py-2.5 text-muted-foreground">{p.keyAlg}</td>
-                <td className="px-4 py-2.5 text-muted-foreground">{p.validityDays}d</td>
-                <td className="px-4 py-2.5 text-muted-foreground">{p.isCA ? "yes" : "no"}</td>
-                <td className="px-4 py-2.5 text-muted-foreground">
-                  {p.extKeyUsage.join(", ") || "\u2014"}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        columns={profileColumns}
+        data={profiles}
+        facets={[
+          { columnId: "keyAlg", title: "Key alg" },
+          { columnId: "ca", title: "CA" },
+        ]}
+        initialSort={[{ desc: false, id: "name" }]}
+        searchKeys={["name"]}
+        tableKey="profiles"
+      />
     </section>
   );
 };

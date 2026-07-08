@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it } from "vitest";
 
@@ -40,5 +40,25 @@ describe("ProfilesPage", () => {
       "href",
       "/profiles/new",
     );
+  });
+
+  it("narrows to RSA-3072 via the Key alg facet, hiding an ECDSA-P384 profile", () => {
+    render(
+      <MemoryRouter>
+        <ProfilesPage />
+      </MemoryRouter>,
+    );
+    expect(screen.getByRole("link", { name: /domain controller/i })).toBeInTheDocument();
+
+    const facetToggle = screen
+      .getAllByRole("button", { name: /^key alg$/i })
+      .find((button) => !button.closest("table"));
+    if (!facetToggle) throw new Error("facet toggle not found");
+    fireEvent.click(facetToggle);
+    const rsaOption = screen.getAllByText("RSA-3072").find((element) => !element.closest("table"));
+    if (!rsaOption) throw new Error("RSA-3072 option not found");
+    fireEvent.click(rsaOption);
+
+    expect(screen.queryByRole("link", { name: /domain controller/i })).not.toBeInTheDocument();
   });
 });
