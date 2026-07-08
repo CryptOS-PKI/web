@@ -21,7 +21,8 @@ import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
 const items: { end?: boolean; label: string; to: string }[] = [
-  { end: true, label: "Fleet", to: "/" },
+  { end: true, label: "Dashboard", to: "/" },
+  { label: "Fleet", to: "/fleet" },
   { label: "Nodes", to: "/nodes" },
   { label: "Certificates", to: "/certificates" },
   { label: "Enrollment", to: "/enrollment" },

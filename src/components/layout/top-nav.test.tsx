@@ -29,7 +29,8 @@ describe("TopNav", () => {
         <TopNav />
       </MemoryRouter>,
     );
-    expect(screen.getByRole("link", { name: /fleet/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /dashboard/i })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: /^fleet$/i })).toHaveAttribute("href", "/fleet");
     expect(screen.getByRole("link", { name: /nodes/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /certificates/i })).toHaveAttribute(
       "href",
