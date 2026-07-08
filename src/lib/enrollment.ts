@@ -18,6 +18,7 @@ limitations under the License.
 
 import { useSyncExternalStore } from "react";
 
+import { recordAudit } from "@/lib/audit";
 import { canIssue, type CertKind } from "@/lib/certs";
 import { type Node, type NodeRole } from "@/lib/mock";
 import { addNode, getNodeByCn } from "@/lib/nodes";
@@ -178,12 +179,23 @@ export const approveEnrollment = (id: string): void => {
   };
   addNode(node);
   patch(id, { admittedNodeName: node.name, status: "APPROVED" });
+  recordAudit({
+    kind: "enroll-approved",
+    summary: `Approved enrollment ${req.proposedName} under ${req.parentCn}`,
+    targetKind: "node",
+    targetPath: `/nodes/${req.proposedName}`,
+  });
 };
 
 export const rejectEnrollment = (id: string, reason: string): void => {
   const req = getEnrollment(id);
   if (!req || req.status !== "PENDING") return;
   patch(id, { rejectionReason: reason, status: "REJECTED" });
+  recordAudit({
+    kind: "enroll-rejected",
+    summary: `Rejected enrollment ${req.proposedName} (${reason})`,
+    targetKind: "enrollment",
+  });
 };
 
 // Test-only.

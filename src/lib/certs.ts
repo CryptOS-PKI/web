@@ -18,6 +18,7 @@ limitations under the License.
 
 import { useSyncExternalStore } from "react";
 
+import { recordAudit } from "@/lib/audit";
 import { mockNodes, type Node } from "@/lib/mock";
 
 export type CertKind = "leaf" | "subordinate-ca";
@@ -218,6 +219,12 @@ export const issueCert = (issuerNodeName: string, draft: IssueDraft): Cert => {
   certs = [cert, ...certs];
   reindex();
   emit();
+  recordAudit({
+    kind: "issued",
+    summary: `Issued ${cert.kind === "subordinate-ca" ? "sub-CA" : "leaf"} ${cert.subjectCn} on ${issuerNodeName}`,
+    targetKind: "cert",
+    targetPath: `/nodes/${issuerNodeName}/certs/${cert.serial}`,
+  });
   return cert;
 };
 
@@ -227,6 +234,14 @@ export const revokeCert = (serial: string, reason: RevocationReason): void => {
   );
   reindex();
   emit();
+  const rc = getCert(serial);
+  if (rc)
+    recordAudit({
+      kind: "revoked",
+      summary: `Revoked ${rc.subjectCn} (${reason})`,
+      targetKind: "cert",
+      targetPath: `/nodes/${rc.issuerNodeName}/certs/${serial}`,
+    });
 };
 
 // Renew: issue a fresh cert with the same subject/profile/kind/sans/eku and a
@@ -266,6 +281,12 @@ export const renewCert = (serial: string): Cert | undefined => {
   ];
   reindex();
   emit();
+  recordAudit({
+    kind: "renewed",
+    summary: `Renewed ${fresh.subjectCn}`,
+    targetKind: "cert",
+    targetPath: `/nodes/${fresh.issuerNodeName}/certs/${fresh.serial}`,
+  });
   return fresh;
 };
 

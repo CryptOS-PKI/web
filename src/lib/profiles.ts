@@ -18,6 +18,8 @@ limitations under the License.
 
 import { useSyncExternalStore } from "react";
 
+import { recordAudit } from "@/lib/audit";
+
 // Mirrors the cryptos.v1 CertificateProfile proto (config.proto): the reusable
 // issuance template that the issue flow and future enrollment adapters draw from.
 export interface CertProfile {
@@ -111,12 +113,26 @@ export const createProfile = (p: CertProfile): { ok: boolean; reason?: string } 
     return { ok: false, reason: `A profile named "${p.name}" already exists.` };
   profiles = [...profiles, p];
   emit();
+  recordAudit({
+    kind: "profile-created",
+    summary: `Created profile ${p.name}`,
+    targetKind: "profile",
+    targetPath: `/profiles/${p.name}`,
+  });
   return { ok: true };
 };
 
 export const updateProfile = (name: string, patch: Partial<CertProfile>): void => {
+  const exists = profiles.some((p) => p.name === name);
   profiles = profiles.map((p) => (p.name === name ? { ...p, ...patch } : p));
   emit();
+  if (!exists) return;
+  recordAudit({
+    kind: "profile-updated",
+    summary: `Updated profile ${name}`,
+    targetKind: "profile",
+    targetPath: `/profiles/${name}`,
+  });
 };
 
 // Test-only.
