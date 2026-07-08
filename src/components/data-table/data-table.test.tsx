@@ -107,4 +107,31 @@ describe("DataTable", () => {
     fireEvent.change(screen.getByPlaceholderText(/search/i), { target: { value: "zzz" } });
     expect(screen.getByText(/no matching rows/i)).toBeInTheDocument();
   });
+
+  it("keeps all facet options selectable even when another facet excludes them", () => {
+    // size=1 matches only bravo (kind "ca"); the Kind facet must still offer
+    // "leaf" so the user is never locked out of switching filters.
+    render(
+      <MemoryRouter initialEntries={["/?t.size=1"]}>
+        <DataTable
+          columns={columns}
+          data={data}
+          facets={[
+            { columnId: "kind", title: "Kind" },
+            { columnId: "size", title: "Size" },
+          ]}
+          pageSize={25}
+          tableKey="t"
+        />
+      </MemoryRouter>,
+    );
+    const kindToggle = screen
+      .getAllByRole("button", { name: /kind/i })
+      .find((button) => !button.closest("table"));
+    if (!kindToggle) throw new Error("kind facet toggle not found");
+    fireEvent.click(kindToggle);
+    // "leaf" is absent from the table body (only the ca row shows), so this
+    // match is the facet option, proving it is still offered.
+    expect(screen.getByText("leaf")).toBeInTheDocument();
+  });
 });

@@ -138,14 +138,24 @@ export const DataTable = <T,>({
           {facets.map((f) => {
             const column = table.getColumn(f.columnId);
             if (!column) return null;
-            const options = [...column.getFacetedUniqueValues().entries()]
-              .filter(([v]) => v != null && v !== "")
+            // Options list every distinct value in the column across ALL rows
+            // (the unfiltered core model), never just the cross-filtered subset,
+            // so an active filter on one facet can't hide selectable values in
+            // another. Counts are totals.
+            const counts = new Map<string, number>();
+            for (const row of table.getCoreRowModel().flatRows) {
+              const raw = row.getValue(f.columnId);
+              if (raw == null || raw === "") continue;
+              const value = String(raw);
+              counts.set(value, (counts.get(value) ?? 0) + 1);
+            }
+            const options = [...counts.entries()]
               // eslint-disable-next-line unicorn/no-array-sort
-              .sort((a, b) => String(a[0]).localeCompare(String(b[0])))
-              .map(([v, count]) => ({
+              .sort((a, b) => a[0].localeCompare(b[0]))
+              .map(([value, count]) => ({
                 count,
-                label: f.optionLabel ? f.optionLabel(String(v)) : String(v),
-                value: String(v),
+                label: f.optionLabel ? f.optionLabel(value) : value,
+                value,
               }));
             return (
               <FacetedFilter
