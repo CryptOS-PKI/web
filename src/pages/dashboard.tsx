@@ -61,7 +61,9 @@ export const DashboardPage = () => {
   const expiring = certs.filter(
     (c) => c.status !== "REVOKED" && expiryClass(c) === "expiring",
   ).length;
-  const expired = certs.filter((c) => expiryClass(c) === "expired").length;
+  const expired = certs.filter(
+    (c) => c.status !== "REVOKED" && expiryClass(c) === "expired",
+  ).length;
   const validCerts = certs.filter((c) => c.status === "VALID").length;
   const pending = enrollments.filter((e) => e.status === "PENDING").length;
   const enabledAdapters = adapters.filter((a) => a.enabled).length;
