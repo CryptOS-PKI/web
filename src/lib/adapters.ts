@@ -18,6 +18,8 @@ limitations under the License.
 
 import { useSyncExternalStore } from "react";
 
+import { recordAudit } from "@/lib/audit";
+
 // UI-defined config for an enrollment protocol adapter (mock). The real
 // protocol servers (ACME directory, XCEP/WSTEP, SCEP/EST) are roadmap E; this
 // is the config surface that binds each protocol to a certificate profile.
@@ -92,7 +94,16 @@ const patch = (kind: AdapterKind, next: Partial<EnrollmentAdapter>): void => {
   emit();
 };
 
-export const setEnabled = (kind: AdapterKind, on: boolean): void => patch(kind, { enabled: on });
+export const setEnabled = (kind: AdapterKind, on: boolean): void => {
+  patch(kind, { enabled: on });
+  const a = getAdapter(kind);
+  recordAudit({
+    kind: "protocol-toggled",
+    summary: `${on ? "Enabled" : "Disabled"} ${a?.name ?? kind}`,
+    targetKind: "protocol",
+    targetPath: `/protocols/${kind}`,
+  });
+};
 export const updateAdapter = (kind: AdapterKind, next: Partial<EnrollmentAdapter>): void =>
   patch(kind, next);
 
