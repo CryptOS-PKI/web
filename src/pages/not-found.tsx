@@ -26,7 +26,7 @@ export const NotFoundPage = () => {
       <p className="font-mono text-4xl font-bold text-primary">404</p>
       <p className="text-sm text-muted-foreground">That page is not part of the Fleet Manager.</p>
       <Button asChild>
-        <Link to="/">Back to fleet</Link>
+        <Link to="/">Back to dashboard</Link>
       </Button>
     </section>
   );
