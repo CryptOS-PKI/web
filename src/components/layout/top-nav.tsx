@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 const items: { end?: boolean; label: string; to: string }[] = [
   { end: true, label: "Fleet", to: "/" },
   { label: "Nodes", to: "/nodes" },
+  { label: "Certificates", to: "/certificates" },
   { label: "Enrollment", to: "/enrollment" },
   { label: "Profiles", to: "/profiles" },
   { label: "Protocols", to: "/protocols" },

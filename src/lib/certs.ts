@@ -73,10 +73,21 @@ const hex = (seed: number): string => {
   return out.toUpperCase();
 };
 
-const daysFromNow = (days: number): string => {
-  // A fixed epoch keeps fixtures stable and avoids Date.now() in module init.
-  const base = Date.parse("2026-07-01T00:00:00Z");
-  return new Date(base + days * 86_400_000).toISOString();
+export const MOCK_NOW_MS = Date.parse("2026-07-01T00:00:00Z");
+
+const daysFromNow = (days: number): string =>
+  new Date(MOCK_NOW_MS + days * 86_400_000).toISOString();
+
+export const EXPIRING_SOON_DAYS = 30;
+export type ExpiryClass = "expired" | "expiring" | "ok";
+
+export const daysUntilExpiry = (cert: Cert): number =>
+  Math.floor((Date.parse(cert.notAfter) - MOCK_NOW_MS) / 86_400_000);
+
+export const expiryClass = (cert: Cert): ExpiryClass => {
+  if (cert.status === "EXPIRED" || daysUntilExpiry(cert) < 0) return "expired";
+  if (daysUntilExpiry(cert) <= EXPIRING_SOON_DAYS) return "expiring";
+  return "ok";
 };
 
 const seed = (): Cert[] => {
@@ -103,6 +114,46 @@ const seed = (): Cert[] => {
       n += 1;
     }
   }
+  // Lifecycle variety so the certificates view shows expiring (amber) + expired
+  // (red) states against the fixed clock; the rest of the seed is far-future.
+  out.push(
+    {
+      eku: ["serverAuth"],
+      issuedAt: daysFromNow(-350),
+      issuerNodeName: "acme-issuing-01",
+      kind: "leaf",
+      notAfter: daysFromNow(15),
+      notBefore: daysFromNow(-350),
+      sans: ["ldap-a.acme.example"],
+      serial: hex(n++),
+      status: "VALID",
+      subjectCn: "ldap-a.acme.example",
+    },
+    {
+      eku: ["serverAuth"],
+      issuedAt: daysFromNow(-340),
+      issuerNodeName: "acme-intermediate-01",
+      kind: "leaf",
+      notAfter: daysFromNow(25),
+      notBefore: daysFromNow(-340),
+      sans: ["ldap-b.acme.example"],
+      serial: hex(n++),
+      status: "VALID",
+      subjectCn: "ldap-b.acme.example",
+    },
+    {
+      eku: ["serverAuth"],
+      issuedAt: daysFromNow(-368),
+      issuerNodeName: "acme-issuing-01",
+      kind: "leaf",
+      notAfter: daysFromNow(-3),
+      notBefore: daysFromNow(-368),
+      sans: ["old.acme.example"],
+      serial: hex(n++),
+      status: "EXPIRED",
+      subjectCn: "old.acme.example",
+    },
+  );
   return out;
 };
 
@@ -140,6 +191,14 @@ export const useCerts = (nodeName: string): Cert[] =>
     () => certsFor(nodeName),
   );
 
+export const allCerts = (): Cert[] => certs;
+export const useAllCerts = (): Cert[] =>
+  useSyncExternalStore(
+    subscribe,
+    () => certs,
+    () => certs,
+  );
+
 let nextSerial = 10_000;
 export const issueCert = (issuerNodeName: string, draft: IssueDraft): Cert => {
   const cert: Cert = {
@@ -168,6 +227,46 @@ export const revokeCert = (serial: string, reason: RevocationReason): void => {
   );
   reindex();
   emit();
+};
+
+// Renew: issue a fresh cert with the same subject/profile/kind/sans/eku and a
+// validity matching the old cert's original span, then supersede the old one
+// (REVOKED + reason "superseded"). One reindex/emit.
+export const renewCert = (serial: string): Cert | undefined => {
+  const old = certs.find((c) => c.serial === serial);
+  if (!old || old.status === "REVOKED") return undefined;
+  const span = Math.round((Date.parse(old.notAfter) - Date.parse(old.notBefore)) / 86_400_000);
+  const validityDays = span > 0 ? span : 365;
+  const fresh: Cert = {
+    eku: old.eku,
+    issuedAt: daysFromNow(0),
+    issuerNodeName: old.issuerNodeName,
+    kind: old.kind,
+    notAfter: daysFromNow(validityDays),
+    notBefore: daysFromNow(0),
+    pathLen: old.pathLen,
+    profile: old.profile,
+    sans: old.sans,
+    serial: hex(nextSerial++),
+    status: "VALID",
+    subjectCn: old.subjectCn,
+  };
+  certs = [
+    fresh,
+    ...certs.map((c) =>
+      c.serial === serial
+        ? {
+            ...c,
+            reason: "superseded" as const,
+            revokedAt: daysFromNow(0),
+            status: "REVOKED" as const,
+          }
+        : c,
+    ),
+  ];
+  reindex();
+  emit();
+  return fresh;
 };
 
 // Test-only: restore the seeded fixtures between tests.

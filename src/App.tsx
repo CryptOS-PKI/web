@@ -21,6 +21,7 @@ import { Route, Routes } from "react-router-dom";
 import { AppShell } from "@/components/layout/app-shell";
 import { AuthGate } from "@/components/layout/auth-gate";
 import { AuditPage } from "@/pages/audit";
+import { CertificatesPage } from "@/pages/certificates";
 import { EnrollmentPage } from "@/pages/enrollment";
 import { EnrollmentDetailPage } from "@/pages/enrollment-detail";
 import { FleetPage } from "@/pages/fleet";
@@ -56,6 +57,7 @@ export const App = () => {
           <Route element={<EnrollmentPage />} path="enrollment" />
           <Route element={<EnrollmentDetailPage />} path="enrollment/:id" />
           <Route element={<AuditPage />} path="audit" />
+          <Route element={<CertificatesPage />} path="certificates" />
           <Route element={<ProfilesPage />} path="profiles" />
           <Route element={<ProtocolsPage />} path="protocols" />
           <Route element={<ProtocolDetailPage />} path="protocols/:kind" />
