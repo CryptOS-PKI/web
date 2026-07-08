@@ -74,7 +74,7 @@ export const AuditPage = () => {
             onClick={() => setFilter(k)}
             type="button"
           >
-            {k.replace("-", " ")}
+            {k.replaceAll("-", " ")}
           </button>
         ))}
       </div>
@@ -96,7 +96,7 @@ export const AuditPage = () => {
                 <tr className="border-t hover:bg-accent" key={e.id}>
                   <td className="px-3 py-2 text-muted-foreground">{e.at.slice(0, 10)}</td>
                   <td className={cn("px-3 py-2 font-semibold", KIND_TONE[e.kind])}>
-                    {e.kind.replace("-", " ")}
+                    {e.kind.replaceAll("-", " ")}
                   </td>
                   <td className="px-3 py-2">
                     {e.targetPath ? (

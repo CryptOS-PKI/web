@@ -123,8 +123,10 @@ export const createProfile = (p: CertProfile): { ok: boolean; reason?: string } 
 };
 
 export const updateProfile = (name: string, patch: Partial<CertProfile>): void => {
+  const exists = profiles.some((p) => p.name === name);
   profiles = profiles.map((p) => (p.name === name ? { ...p, ...patch } : p));
   emit();
+  if (!exists) return;
   recordAudit({
     kind: "profile-updated",
     summary: `Updated profile ${name}`,

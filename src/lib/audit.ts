@@ -57,9 +57,9 @@ const seed = (): AuditEvent[] => [
     at: daysFromNow(-2),
     id: "aud-0008",
     kind: "enroll-approved",
-    summary: "Approved enrollment acme-issuing-04 under ACME Intermediate CA G1",
+    summary: "Approved enrollment acme-issuing-03 under ACME Intermediate CA G1",
     targetKind: "node",
-    targetPath: "/nodes/acme-issuing-04",
+    targetPath: "/nodes/acme-issuing-03",
   },
   {
     at: daysFromNow(-3),
