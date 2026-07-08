@@ -101,7 +101,7 @@ export const NodeDetailPanel = ({ node }: { node: Node }) => {
           </Button>
         ) : null}
         <Button asChild size="sm" variant="outline">
-          <Link to={`/nodes/${node.name}`}>View chain</Link>
+          <Link to={`/nodes/${node.name}`}>Open node</Link>
         </Button>
         {node.identityState === "REVOKED" ? null : (
           <Button asChild size="sm" variant="outline">

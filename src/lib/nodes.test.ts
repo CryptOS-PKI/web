@@ -19,7 +19,7 @@ limitations under the License.
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { mockNodes } from "@/lib/mock";
-import { __resetNodes, addNode, getNode, nodesList } from "@/lib/nodes";
+import { __resetNodes, addNode, chainToRoot, getNode, nodesList } from "@/lib/nodes";
 
 describe("nodes store", () => {
   beforeEach(() => __resetNodes());
@@ -53,5 +53,18 @@ describe("nodes store", () => {
     expect(nodesList()).not.toBe(before);
     expect(nodesList().length).toBe(before.length + 1);
     expect(getNode("acme-issuing-x9")?.cn).toBe("ACME Issuing CA X9");
+  });
+});
+
+describe("chainToRoot", () => {
+  it("returns the ordered chain from the root to the node", () => {
+    const chain = chainToRoot(getNode("acme-issuing-01")!).map((n) => n.name);
+    expect(chain[0]).toBe("acme-root-01");
+    expect(chain[chain.length - 1]).toBe("acme-issuing-01");
+    expect(chain).toContain("acme-intermediate-01");
+  });
+
+  it("returns a single element for a root", () => {
+    expect(chainToRoot(getNode("acme-root-01")!).map((n) => n.name)).toEqual(["acme-root-01"]);
   });
 });
