@@ -48,7 +48,7 @@ const protocolColumns: ColumnDef<EnrollmentAdapter, unknown>[] = [
   {
     cell: ({ row }) => (
       <button
-        className="text-primary hover:underline"
+        className="rounded-md border px-2.5 py-1 text-xs hover:bg-secondary"
         onClick={() => setEnabled(row.original.kind, !row.original.enabled)}
         type="button"
       >

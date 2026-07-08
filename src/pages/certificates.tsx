@@ -96,7 +96,7 @@ const certColumns: ColumnDef<Cert, unknown>[] = [
     cell: ({ row }) =>
       row.original.status === "REVOKED" ? null : (
         <button
-          className="text-primary hover:underline"
+          className="rounded-md border px-2.5 py-1 text-[11px] hover:bg-secondary"
           onClick={() => renewCert(row.original.serial)}
           type="button"
         >

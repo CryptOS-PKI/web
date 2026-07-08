@@ -20,11 +20,12 @@ import type { ColumnDef } from "@tanstack/react-table";
 
 import { Link } from "react-router-dom";
 
-import type { Node } from "@/lib/mock";
+import type { IdentityState, Node } from "@/lib/mock";
 
 import { DataTable } from "@/components/data-table/data-table";
 import { IdentityBadge } from "@/components/identity-badge";
 import { certsFor } from "@/lib/certs";
+import { identityStateLabels } from "@/lib/mock";
 import { useNodes } from "@/lib/nodes";
 
 const rootColumns: ColumnDef<Node, unknown>[] = [
@@ -66,7 +67,13 @@ export const RootPage = () => {
       <DataTable
         columns={rootColumns}
         data={roots}
-        facets={[{ columnId: "identityState", title: "Identity" }]}
+        facets={[
+          {
+            columnId: "identityState",
+            optionLabel: (value) => identityStateLabels[value as IdentityState],
+            title: "Identity",
+          },
+        ]}
         initialSort={[{ desc: false, id: "name" }]}
         searchKeys={["name"]}
         tableKey="root"

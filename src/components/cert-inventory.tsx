@@ -70,7 +70,7 @@ const makeColumns = (
     cell: ({ row }) =>
       row.original.status === "REVOKED" ? null : (
         <button
-          className="text-primary hover:underline"
+          className="text-destructive hover:underline"
           onClick={() =>
             onRevoke({ serial: row.original.serial, subjectCn: row.original.subjectCn })
           }
