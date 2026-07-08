@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it } from "vitest";
 
@@ -40,5 +40,18 @@ describe("ProfilesPage", () => {
       "href",
       "/profiles/new",
     );
+  });
+
+  it("narrows to RSA-3072 via the Key alg facet, hiding an ECDSA-P384 profile", () => {
+    render(
+      <MemoryRouter>
+        <ProfilesPage />
+      </MemoryRouter>,
+    );
+    expect(screen.getByRole("link", { name: /domain controller/i })).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Filter Key alg"), { target: { value: "RSA-3072" } });
+
+    expect(screen.queryByRole("link", { name: /domain controller/i })).not.toBeInTheDocument();
   });
 });

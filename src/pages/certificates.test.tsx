@@ -30,7 +30,7 @@ describe("CertificatesPage", () => {
     __resetCerts();
   });
 
-  it("lists certs soonest-expiry first and links the subject to the cert detail", () => {
+  it("lists seeded certs and links the subject to the cert detail", () => {
     render(
       <MemoryRouter>
         <CertificatesPage />
@@ -57,5 +57,18 @@ describe("CertificatesPage", () => {
     expect(
       allCerts().find((c) => c.subjectCn === "ldap-a.acme.example" && c.status === "REVOKED"),
     ).toBeDefined();
+  });
+
+  it("search filters to matching certs only", () => {
+    render(
+      <MemoryRouter>
+        <CertificatesPage />
+      </MemoryRouter>,
+    );
+    fireEvent.change(screen.getByLabelText("Filter subjectCn"), {
+      target: { value: "ldap-a.acme.example" },
+    });
+    expect(screen.getByRole("link", { name: "ldap-a.acme.example" })).toBeInTheDocument();
+    expect(screen.queryByText("old.acme.example")).not.toBeInTheDocument();
   });
 });

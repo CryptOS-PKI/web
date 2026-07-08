@@ -16,11 +16,41 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+import type { ColumnDef } from "@tanstack/react-table";
+
 import { Link } from "react-router-dom";
 
+import type { IdentityState, Node } from "@/lib/mock";
+
+import { DataTable } from "@/components/data-table/data-table";
 import { IdentityBadge } from "@/components/identity-badge";
 import { certsFor } from "@/lib/certs";
+import { identityStateLabels } from "@/lib/mock";
 import { useNodes } from "@/lib/nodes";
+
+const rootColumns: ColumnDef<Node, unknown>[] = [
+  {
+    accessorKey: "name",
+    cell: ({ row }) => (
+      <Link className="text-primary hover:underline" to={`/root/${row.original.name}`}>
+        {row.original.name}
+      </Link>
+    ),
+    header: "Name",
+  },
+  {
+    accessorKey: "identityState",
+    cell: ({ row }) => <IdentityBadge state={row.original.identityState} />,
+    header: "Identity",
+  },
+  {
+    accessorFn: (n) => certsFor(n.name).length,
+    enableSorting: true,
+    header: "Certs",
+    id: "certs",
+  },
+  { cell: () => "\u203A", enableSorting: false, header: "", id: "chevron" },
+];
 
 // The fleet's root CAs. Each root is an independent trust anchor the manager
 // reaches over its own mTLS identity; a row opens that root's config + ceremony.
@@ -34,38 +64,19 @@ export const RootPage = () => {
         <p className="text-sm text-muted-foreground">{roots.length} root CAs</p>
       </div>
 
-      {roots.length === 0 ? (
-        <p className="font-mono text-sm text-muted-foreground">No root CAs.</p>
-      ) : (
-        <div className="overflow-x-auto rounded-xl border bg-card">
-          <table className="w-full text-left font-mono text-sm">
-            <thead className="bg-secondary text-[10.5px] uppercase tracking-wider text-muted-foreground">
-              <tr>
-                <th className="px-4 py-2.5">Name</th>
-                <th className="px-4 py-2.5">Identity</th>
-                <th className="px-4 py-2.5">Certs</th>
-                <th className="px-4 py-2.5" />
-              </tr>
-            </thead>
-            <tbody>
-              {roots.map((n) => (
-                <tr className="border-t hover:bg-accent" key={n.name}>
-                  <td className="px-4 py-2.5">
-                    <Link className="text-primary hover:underline" to={`/root/${n.name}`}>
-                      {n.name}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <IdentityBadge state={n.identityState} />
-                  </td>
-                  <td className="px-4 py-2.5">{certsFor(n.name).length}</td>
-                  <td className="px-4 py-2.5 text-right text-muted-foreground">{"\u203A"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <DataTable
+        columns={rootColumns}
+        data={roots}
+        facets={[
+          {
+            columnId: "identityState",
+            optionLabel: (value) => identityStateLabels[value as IdentityState],
+            title: "Identity",
+          },
+        ]}
+        initialSort={[{ desc: false, id: "name" }]}
+        searchKeys={["name"]}
+      />
     </section>
   );
 };

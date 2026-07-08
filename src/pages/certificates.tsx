@@ -16,20 +16,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+import type { ColumnDef } from "@tanstack/react-table";
+
 import { Link } from "react-router-dom";
 
+import { DataTable } from "@/components/data-table/data-table";
 import { type Cert, daysUntilExpiry, expiryClass, renewCert, useAllCerts } from "@/lib/certs";
-import { cn } from "@/lib/utils";
 
-const TONE: Record<string, string> = {
+const TONE: Record<"expired" | "expiring" | "ok", string> = {
   expired: "text-destructive",
   expiring: "text-warning",
   ok: "text-success",
-};
-
-const tone = (c: Cert): string => {
-  if (c.status === "REVOKED") return "text-muted-foreground";
-  return TONE[expiryClass(c)] ?? "text-muted-foreground";
 };
 
 const daysLabel = (c: Cert): string => {
@@ -38,9 +35,82 @@ const daysLabel = (c: Cert): string => {
   return d < 0 ? `expired ${-d}d ago` : `${d}d`;
 };
 
+const certColumns: ColumnDef<Cert, unknown>[] = [
+  {
+    accessorKey: "subjectCn",
+    cell: ({ row }) => (
+      <Link
+        className="text-primary hover:underline"
+        to={`/nodes/${row.original.issuerNodeName}/certs/${row.original.serial}`}
+      >
+        {row.original.subjectCn}
+      </Link>
+    ),
+    header: "Subject CN",
+  },
+  { accessorKey: "issuerNodeName", header: "Issuer node" },
+  {
+    accessorKey: "kind",
+    cell: ({ row }) => (row.original.kind === "subordinate-ca" ? "sub-CA" : "leaf"),
+    header: "Kind",
+  },
+  { accessorFn: (c) => c.profile ?? "\u2014", header: "Profile", id: "profile" },
+  {
+    accessorFn: (c) => c.notAfter.slice(0, 10),
+    enableSorting: false,
+    header: "Expires",
+    id: "expires",
+  },
+  {
+    accessorFn: (c) => daysUntilExpiry(c),
+    cell: ({ row }) => (
+      <span
+        className={
+          row.original.status === "REVOKED"
+            ? "text-muted-foreground"
+            : TONE[expiryClass(row.original)]
+        }
+      >
+        {daysLabel(row.original)}
+      </span>
+    ),
+    header: "Days left",
+    id: "daysLeft",
+  },
+  {
+    accessorKey: "status",
+    cell: ({ row }) => (
+      <span
+        className={
+          row.original.status === "REVOKED"
+            ? "text-muted-foreground"
+            : TONE[expiryClass(row.original)]
+        }
+      >
+        {row.original.status}
+      </span>
+    ),
+    header: "Status",
+  },
+  {
+    cell: ({ row }) =>
+      row.original.status === "REVOKED" ? null : (
+        <button
+          className="rounded-md border px-2.5 py-1 text-[11px] hover:bg-secondary"
+          onClick={() => renewCert(row.original.serial)}
+          type="button"
+        >
+          Renew
+        </button>
+      ),
+    enableSorting: false,
+    header: "",
+    id: "actions",
+  },
+];
+
 export const CertificatesPage = () => {
-  // eslint-disable-next-line unicorn/no-array-sort
-  const certs = [...useAllCerts()].sort((a, b) => daysUntilExpiry(a) - daysUntilExpiry(b));
+  const certs = useAllCerts();
 
   return (
     <section className="space-y-5">
@@ -51,53 +121,21 @@ export const CertificatesPage = () => {
         </p>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border bg-card">
-        <table className="w-full text-left font-mono text-xs">
-          <thead className="bg-secondary text-[10.5px] uppercase tracking-wider text-muted-foreground">
-            <tr>
-              <th className="px-3 py-2">Subject CN</th>
-              <th className="px-3 py-2">Issuer node</th>
-              <th className="px-3 py-2">Kind</th>
-              <th className="px-3 py-2">Profile</th>
-              <th className="px-3 py-2">Expires</th>
-              <th className="px-3 py-2">Days left</th>
-              <th className="px-3 py-2">Status</th>
-              <th className="px-3 py-2" />
-            </tr>
-          </thead>
-          <tbody>
-            {certs.map((c) => (
-              <tr className="border-t hover:bg-accent" key={c.serial}>
-                <td className="px-3 py-2">
-                  <Link
-                    className="text-primary hover:underline"
-                    to={`/nodes/${c.issuerNodeName}/certs/${c.serial}`}
-                  >
-                    {c.subjectCn}
-                  </Link>
-                </td>
-                <td className="px-3 py-2 text-muted-foreground">{c.issuerNodeName}</td>
-                <td className="px-3 py-2">{c.kind === "subordinate-ca" ? "sub-CA" : "leaf"}</td>
-                <td className="px-3 py-2 text-muted-foreground">{c.profile ?? "\u2014"}</td>
-                <td className="px-3 py-2 text-muted-foreground">{c.notAfter.slice(0, 10)}</td>
-                <td className={cn("px-3 py-2 font-semibold", tone(c))}>{daysLabel(c)}</td>
-                <td className={cn("px-3 py-2 font-semibold", tone(c))}>{c.status}</td>
-                <td className="px-3 py-2">
-                  {c.status === "REVOKED" ? null : (
-                    <button
-                      className="rounded-md border px-2.5 py-1 text-[11px] hover:bg-secondary"
-                      onClick={() => renewCert(c.serial)}
-                      type="button"
-                    >
-                      Renew
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        columns={certColumns}
+        data={certs}
+        facets={[
+          { columnId: "status", title: "Status" },
+          {
+            columnId: "kind",
+            optionLabel: (v) => (v === "subordinate-ca" ? "sub-CA" : "leaf"),
+            title: "Kind",
+          },
+          { columnId: "profile", title: "Profile" },
+        ]}
+        initialSort={[{ desc: false, id: "daysLeft" }]}
+        searchKeys={["subjectCn", "issuerNodeName"]}
+      />
     </section>
   );
 };
