@@ -77,7 +77,6 @@ export const NodesPage = () => {
         ]}
         initialSort={[{ desc: false, id: "name" }]}
         searchKeys={["name"]}
-        tableKey="nodes"
       />
     </section>
   );

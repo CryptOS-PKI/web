@@ -47,7 +47,6 @@ const renderTable = (over: Partial<React.ComponentProps<typeof DataTable<Row>>> 
         facets={[{ columnId: "kind", title: "Kind" }]}
         pageSize={2}
         searchKeys={["name"]}
-        tableKey="t"
         {...over}
       />
     </MemoryRouter>,

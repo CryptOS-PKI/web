@@ -74,7 +74,6 @@ export const ProfilesPage = () => {
         ]}
         initialSort={[{ desc: false, id: "name" }]}
         searchKeys={["name"]}
-        tableKey="profiles"
       />
     </section>
   );

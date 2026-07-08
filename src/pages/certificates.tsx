@@ -135,7 +135,6 @@ export const CertificatesPage = () => {
         ]}
         initialSort={[{ desc: false, id: "daysLeft" }]}
         searchKeys={["subjectCn", "issuerNodeName"]}
-        tableKey="certs"
       />
     </section>
   );

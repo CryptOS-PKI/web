@@ -99,7 +99,6 @@ export const CertInventory = ({ nodeName }: { nodeName: string }) => {
         facets={[{ columnId: "status", title: "Status" }]}
         initialSort={[{ desc: false, id: "expires" }]}
         searchKeys={["subjectCn", "serial"]}
-        tableKey="node-certs"
       />
       {revoking ? (
         <RevokeDialog

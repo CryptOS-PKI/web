@@ -101,7 +101,6 @@ export const EnrollmentPage = () => {
         ]}
         initialSort={[{ desc: true, id: "requested" }]}
         searchKeys={["proposedName", "parentCn"]}
-        tableKey="enroll"
       />
     </section>
   );

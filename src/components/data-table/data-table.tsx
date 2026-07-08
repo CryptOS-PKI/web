@@ -21,6 +21,7 @@ import type {
   ColumnDef,
   ColumnFiltersState,
   FilterFn,
+  PaginationState,
   SortingState,
 } from "@tanstack/react-table";
 
@@ -32,13 +33,12 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import { Input } from "@/components/ui/input";
 
 import { ColumnHeader } from "./column-header";
 import { Pagination } from "./pagination";
-import { useTableSearchParams } from "./use-table-search-params";
 
 export type FacetConfig = {
   columnId: string;
@@ -67,7 +67,6 @@ export const DataTable = <T,>({
   initialSort = [],
   pageSize = 10,
   searchKeys = [],
-  tableKey,
 }: {
   columns: ColumnDef<T, unknown>[];
   data: T[];
@@ -75,9 +74,10 @@ export const DataTable = <T,>({
   initialSort?: SortingState;
   pageSize?: number;
   searchKeys?: string[];
-  tableKey: string;
 }) => {
-  const url = useTableSearchParams(tableKey, pageSize, initialSort);
+  const [sorting, setSorting] = useState<SortingState>(initialSort);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize });
 
   const facetById = useMemo(() => new Map(facets.map((f) => [f.columnId, f])), [facets]);
   const searchSet = useMemo(() => new Set(searchKeys), [searchKeys]);
@@ -109,21 +109,14 @@ export const DataTable = <T,>({
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    onColumnFiltersChange: (updater) =>
-      url.setColumnFilters(
-        typeof updater === "function"
-          ? (updater(url.columnFilters) as ColumnFiltersState)
-          : updater,
-      ),
-    onPaginationChange: (updater) =>
-      url.setPagination(typeof updater === "function" ? updater(url.pagination) : updater),
-    onSortingChange: (updater) =>
-      url.setSorting(typeof updater === "function" ? updater(url.sorting) : updater),
+    onColumnFiltersChange: setColumnFilters,
+    onPaginationChange: setPagination,
+    onSortingChange: setSorting,
     sortDescFirst: false,
     state: {
-      columnFilters: url.columnFilters,
-      pagination: url.pagination,
-      sorting: url.sorting,
+      columnFilters,
+      pagination,
+      sorting,
     },
   });
 

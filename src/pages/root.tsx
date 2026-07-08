@@ -76,7 +76,6 @@ export const RootPage = () => {
         ]}
         initialSort={[{ desc: false, id: "name" }]}
         searchKeys={["name"]}
-        tableKey="root"
       />
     </section>
   );

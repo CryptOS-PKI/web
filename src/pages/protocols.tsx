@@ -79,7 +79,6 @@ export const ProtocolsPage = () => {
         facets={[{ columnId: "enabled", title: "Enabled" }]}
         initialSort={[{ desc: false, id: "name" }]}
         searchKeys={["name", "endpoint"]}
-        tableKey="protocols"
       />
     </section>
   );

@@ -82,7 +82,6 @@ export const AuditPage = () => {
         ]}
         initialSort={[]}
         searchKeys={["summary"]}
-        tableKey="audit"
       />
     </section>
   );
