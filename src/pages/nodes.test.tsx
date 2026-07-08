@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 
@@ -34,5 +34,18 @@ describe("NodesPage", () => {
       "/nodes/acme-issuing-01",
     );
     expect(screen.queryByText("acme-root-01")).not.toBeInTheDocument();
+  });
+
+  it("search filters to matching nodes only", () => {
+    render(
+      <MemoryRouter>
+        <NodesPage />
+      </MemoryRouter>,
+    );
+    fireEvent.change(screen.getByLabelText("Filter name"), {
+      target: { value: "acme-issuing-01" },
+    });
+    expect(screen.getByRole("link", { name: /acme-issuing-01/ })).toBeInTheDocument();
+    expect(screen.queryByText("acme-intermediate-01")).not.toBeInTheDocument();
   });
 });

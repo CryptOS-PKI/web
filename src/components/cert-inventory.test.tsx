@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it } from "vitest";
 
@@ -36,14 +36,32 @@ describe("CertInventory", () => {
     expect(screen.getByText(first.subjectCn)).toBeInTheDocument();
   });
 
-  it("filters to revoked only", () => {
+  it("clicking revoke opens the revoke dialog", () => {
     render(
       <MemoryRouter>
         <CertInventory nodeName="acme-issuing-01" />
       </MemoryRouter>,
     );
-    fireEvent.click(screen.getByRole("button", { name: /revoked/i }));
-    const valid = certsFor("acme-issuing-01").find((c) => c.status === "VALID");
-    expect(valid && screen.queryByText(valid.subjectCn)).not.toBeInTheDocument();
+    const valid = certsFor("acme-issuing-01").find((c) => c.status === "VALID")!;
+    const row = screen.getByText(valid.subjectCn).closest("tr") as HTMLElement;
+    fireEvent.click(within(row).getByRole("button", { name: /revoke/i }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("narrows to REVOKED via the Status facet, hiding a VALID row", () => {
+    const revoked = certsFor("acme-issuing-01").find((c) => c.status === "REVOKED")!;
+    const valid = certsFor("acme-issuing-01").find((c) => c.status === "VALID")!;
+
+    render(
+      <MemoryRouter>
+        <CertInventory nodeName="acme-issuing-01" />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText(valid.subjectCn)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Filter Status"), { target: { value: "REVOKED" } });
+
+    expect(screen.getByText(revoked.subjectCn)).toBeInTheDocument();
+    expect(screen.queryByText(valid.subjectCn)).not.toBeInTheDocument();
   });
 });
