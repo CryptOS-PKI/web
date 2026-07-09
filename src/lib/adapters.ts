@@ -16,9 +16,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 
 import { recordAudit } from "@/lib/audit";
+import { fleetClient } from "@/lib/fleet/client";
+import { fleetMode } from "@/lib/fleet/mode";
+
+import type { EnrollmentAdapter as ProtoEnrollmentAdapter } from "@/gen/fleet/cryptos/fleet/v1/fleet_pb";
 
 // UI-defined config for an enrollment protocol adapter (mock). The real
 // protocol servers (ACME directory, XCEP/WSTEP, SCEP/EST) are roadmap E; this
@@ -82,18 +86,78 @@ export const adaptersList = (): EnrollmentAdapter[] => adapters;
 export const getAdapter = (kind: AdapterKind): EnrollmentAdapter | undefined =>
   adapters.find((a) => a.kind === kind);
 
-export const useAdapters = (): EnrollmentAdapter[] =>
-  useSyncExternalStore(
-    subscribe,
-    () => adapters,
-    () => adapters,
+// The live adapter catalog, populated by ListAdapters over Connect. A
+// separate store from the mock catalog above: `live`/`live-auth` read this
+// array and never touch the mock one, so flipping VITE_FLEET_MODE never
+// mixes the two. Mirrors the live-store pattern in lib/nodes.ts.
+let liveAdapters: EnrollmentAdapter[] = [];
+const liveListeners = new Set<() => void>();
+const emitLive = (): void => {
+  for (const l of liveListeners) l();
+};
+const subscribeLive = (l: () => void): (() => void) => {
+  liveListeners.add(l);
+  return () => liveListeners.delete(l);
+};
+
+const knownAdapterKinds = new Set<AdapterKind>(["acme", "est", "ms-autoenroll", "scep"]);
+
+// EnrollmentAdapter (proto) -> the web EnrollmentAdapter shape. kind is
+// narrowed to the known protocol union, falling back to "acme" (the most
+// common adapter) for an unrecognized value rather than widening the type.
+const fromProtoAdapter = (adapter: ProtoEnrollmentAdapter): EnrollmentAdapter => ({
+  challenges: adapter.challenges.length > 0 ? adapter.challenges : undefined,
+  enabled: adapter.enabled,
+  endpoint: adapter.endpoint,
+  gpoTemplate: adapter.gpoTemplate || undefined,
+  kind: knownAdapterKinds.has(adapter.kind as AdapterKind) ? (adapter.kind as AdapterKind) : "acme",
+  name: adapter.name,
+  profile: adapter.profile,
+});
+
+const ADAPTERS_POLL_INTERVAL_MS = 10_000;
+
+// Fetches ListAdapters once and (for `live`/`live-auth`) keeps polling on an
+// interval so a toggled/updated adapter is picked up without a reload. Errors
+// are swallowed to a console warning: a manager outage should degrade the
+// adapters view to whatever it last had, not throw the page into an error
+// boundary.
+const refreshLiveAdapters = async (): Promise<void> => {
+  try {
+    const response = await fleetClient().listAdapters({});
+    liveAdapters = response.items.map(fromProtoAdapter);
+    emitLive();
+  } catch (error) {
+    // eslint-disable-next-line no-console -- surfaced for local live debugging
+    console.warn("fleet: ListAdapters failed", error);
+  }
+};
+
+export const useAdapters = (): EnrollmentAdapter[] => {
+  const mode = fleetMode();
+
+  useEffect(() => {
+    if (mode === "mock") return;
+    void refreshLiveAdapters();
+    const interval = setInterval(() => void refreshLiveAdapters(), ADAPTERS_POLL_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [mode]);
+
+  return useSyncExternalStore(
+    mode === "mock" ? subscribe : subscribeLive,
+    () => (mode === "mock" ? adapters : liveAdapters),
+    () => (mode === "mock" ? adapters : liveAdapters),
   );
+};
 
 const patch = (kind: AdapterKind, next: Partial<EnrollmentAdapter>): void => {
   adapters = adapters.map((a) => (a.kind === kind ? { ...a, ...next } : a));
   emit();
 };
 
+// live writes: roadmap -- setEnabled/updateAdapter stay mock-only for this
+// read-only run; they mutate the mock store regardless of fleetMode(), and a
+// live manager write path isn't wired yet.
 export const setEnabled = (kind: AdapterKind, on: boolean): void => {
   patch(kind, { enabled: on });
   const a = getAdapter(kind);

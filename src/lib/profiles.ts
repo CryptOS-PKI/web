@@ -16,9 +16,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 
 import { recordAudit } from "@/lib/audit";
+import { fleetClient } from "@/lib/fleet/client";
+import { fleetMode } from "@/lib/fleet/mode";
+
+import type { CertProfile as ProtoCertProfile } from "@/gen/fleet/cryptos/fleet/v1/fleet_pb";
 
 // Mirrors the cryptos.v1 CertificateProfile proto (config.proto): the reusable
 // issuance template that the issue flow and future enrollment adapters draw from.
@@ -100,13 +104,72 @@ export const profilesList = (): CertProfile[] => profiles;
 export const getProfile = (name: string): CertProfile | undefined =>
   profiles.find((p) => p.name === name);
 
-export const useProfiles = (): CertProfile[] =>
-  useSyncExternalStore(
-    subscribe,
-    () => profiles,
-    () => profiles,
-  );
+// The live profile catalog, populated by ListProfiles over Connect. A
+// separate store from the mock catalog above: `live`/`live-auth` read this
+// array and never touch the mock one, so flipping VITE_FLEET_MODE never
+// mixes the two. Mirrors the live-store pattern in lib/nodes.ts.
+let liveProfiles: CertProfile[] = [];
+const liveListeners = new Set<() => void>();
+const emitLive = (): void => {
+  for (const l of liveListeners) l();
+};
+const subscribeLive = (l: () => void): (() => void) => {
+  liveListeners.add(l);
+  return () => liveListeners.delete(l);
+};
 
+// CertProfile (proto) -> the web CertProfile shape, field for field. is_ca ->
+// isCA; path_len is only meaningful for CA profiles, so a zero on a non-CA
+// profile is treated as "not set" rather than a real path length of 0.
+const fromProtoProfile = (profile: ProtoCertProfile): CertProfile => ({
+  extKeyUsage: profile.extKeyUsage,
+  isCA: profile.isCa,
+  keyAlg: profile.keyAlg,
+  keyUsage: profile.keyUsage,
+  name: profile.name,
+  pathLen: profile.isCa && profile.pathLen !== 0 ? profile.pathLen : undefined,
+  sans: profile.sans,
+  validityDays: profile.validityDays,
+});
+
+const PROFILES_POLL_INTERVAL_MS = 10_000;
+
+// Fetches ListProfiles once and (for `live`/`live-auth`) keeps polling on an
+// interval so a newly created/updated profile is picked up without a reload.
+// Errors are swallowed to a console warning: a manager outage should degrade
+// the profiles view to whatever it last had, not throw the page into an
+// error boundary.
+const refreshLiveProfiles = async (): Promise<void> => {
+  try {
+    const response = await fleetClient().listProfiles({});
+    liveProfiles = response.items.map(fromProtoProfile);
+    emitLive();
+  } catch (error) {
+    // eslint-disable-next-line no-console -- surfaced for local live debugging
+    console.warn("fleet: ListProfiles failed", error);
+  }
+};
+
+export const useProfiles = (): CertProfile[] => {
+  const mode = fleetMode();
+
+  useEffect(() => {
+    if (mode === "mock") return;
+    void refreshLiveProfiles();
+    const interval = setInterval(() => void refreshLiveProfiles(), PROFILES_POLL_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [mode]);
+
+  return useSyncExternalStore(
+    mode === "mock" ? subscribe : subscribeLive,
+    () => (mode === "mock" ? profiles : liveProfiles),
+    () => (mode === "mock" ? profiles : liveProfiles),
+  );
+};
+
+// live writes: roadmap -- createProfile/updateProfile stay mock-only for this
+// read-only run; they mutate the mock store regardless of fleetMode(), and a
+// live manager write path isn't wired yet.
 export const createProfile = (p: CertProfile): { ok: boolean; reason?: string } => {
   if (!p.name.trim()) return { ok: false, reason: "Name is required." };
   if (getProfile(p.name))

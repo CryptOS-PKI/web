@@ -16,12 +16,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 
 import { recordAudit } from "@/lib/audit";
 import { canIssue, type CertKind } from "@/lib/certs";
+import { fleetClient } from "@/lib/fleet/client";
+import { fleetMode } from "@/lib/fleet/mode";
 import { type Node, type NodeRole } from "@/lib/mock";
 import { addNode, getNodeByCn } from "@/lib/nodes";
+
+import type { EnrollmentRequest as ProtoEnrollmentRequest } from "@/gen/fleet/cryptos/fleet/v1/fleet_pb";
 
 export interface Attestation {
   nodeId: string;
@@ -130,12 +134,85 @@ export const enrollmentsList = (): EnrollmentRequest[] => requests;
 export const getEnrollment = (id: string): EnrollmentRequest | undefined =>
   requests.find((r) => r.id === id);
 
-export const useEnrollments = (): EnrollmentRequest[] =>
-  useSyncExternalStore(
-    subscribe,
-    () => requests,
-    () => requests,
+// The live enrollment queue, populated by ListEnrollments over Connect. A
+// separate store from the mock queue above: `live`/`live-auth` read this
+// array and never touch the mock one, so flipping VITE_FLEET_MODE never
+// mixes the two. Mirrors the live-store pattern in lib/nodes.ts.
+let liveRequests: EnrollmentRequest[] = [];
+const liveListeners = new Set<() => void>();
+const emitLive = (): void => {
+  for (const l of liveListeners) l();
+};
+const subscribeLive = (l: () => void): (() => void) => {
+  liveListeners.add(l);
+  return () => liveListeners.delete(l);
+};
+
+const knownRoles = new Set<NodeRole>(["root", "intermediate", "issuing"]);
+const knownStatuses = new Set<EnrollmentStatus>(["APPROVED", "PENDING", "REJECTED"]);
+
+// EnrollmentRequest (proto) -> the web EnrollmentRequest shape. The proto
+// flattens attestation/CSR detail to display strings for this read-only
+// surface, so the nested `Attestation`/`Csr` shapes the web type needs are
+// reconstructed from them: attestation_summary becomes the `tpm` display
+// string (its role for mock data), attestation_node_id becomes `nodeId`; the
+// CSR's key type/subject come across as-is.
+const fromProtoRequest = (request: ProtoEnrollmentRequest): EnrollmentRequest => ({
+  address: request.address,
+  admittedNodeName: request.admittedNodeName || undefined,
+  attestation: {
+    nodeId: request.attestationNodeId,
+    tpm: request.attestationSummary,
+  },
+  csr: {
+    keyType: request.csrKeyType,
+    subjectCn: request.csrSubjectCn,
+  },
+  id: request.id,
+  parentCn: request.parentCn,
+  proposedName: request.proposedName,
+  rejectionReason: request.rejectionReason || undefined,
+  requestedAt: request.requestedAt,
+  role: knownRoles.has(request.role as NodeRole) ? (request.role as NodeRole) : "issuing",
+  status: knownStatuses.has(request.status as EnrollmentStatus)
+    ? (request.status as EnrollmentStatus)
+    : "PENDING",
+});
+
+const ENROLLMENTS_POLL_INTERVAL_MS = 10_000;
+
+// Fetches ListEnrollments once and (for `live`/`live-auth`) keeps polling on
+// an interval so a newly submitted request is picked up without a reload.
+// Errors are swallowed to a console warning: a manager outage should degrade
+// the enrollment view to whatever it last had, not throw the page into an
+// error boundary.
+const refreshLiveEnrollments = async (): Promise<void> => {
+  try {
+    const response = await fleetClient().listEnrollments({});
+    liveRequests = response.items.map(fromProtoRequest);
+    emitLive();
+  } catch (error) {
+    // eslint-disable-next-line no-console -- surfaced for local live debugging
+    console.warn("fleet: ListEnrollments failed", error);
+  }
+};
+
+export const useEnrollments = (): EnrollmentRequest[] => {
+  const mode = fleetMode();
+
+  useEffect(() => {
+    if (mode === "mock") return;
+    void refreshLiveEnrollments();
+    const interval = setInterval(() => void refreshLiveEnrollments(), ENROLLMENTS_POLL_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [mode]);
+
+  return useSyncExternalStore(
+    mode === "mock" ? subscribe : subscribeLive,
+    () => (mode === "mock" ? requests : liveRequests),
+    () => (mode === "mock" ? requests : liveRequests),
   );
+};
 
 let nextId = 9000;
 export const requestEnrollment = (draft: EnrollmentDraft): EnrollmentRequest => {
@@ -155,6 +232,10 @@ const patch = (id: string, next: Partial<EnrollmentRequest>): void => {
   emit();
 };
 
+// live writes: roadmap -- approveEnrollment/rejectEnrollment stay mock-only
+// for this read-only run; they mutate the mock store regardless of
+// fleetMode(), and a live manager write path isn't wired yet.
+//
 // Approve: parent signs (capability-checked), the node joins the fleet. The
 // AWAITING_CERT -> ESTABLISHED interim is modeled by admitting the node already
 // established for the mock happy path.
