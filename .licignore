@@ -20,3 +20,8 @@
 **/dist/**
 /coverage/**
 **/coverage/**
+
+# Connect-ES stubs bridged in from the api repo's generated TS output (see the
+# bridge-copy note atop each file under src/gen) -- regenerated there, copied
+# here until a published package replaces the copy.
+/src/gen/**
