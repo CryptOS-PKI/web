@@ -16,10 +16,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 
 import { recordAudit } from "@/lib/audit";
+import { fleetClient } from "@/lib/fleet/client";
+import { fleetMode } from "@/lib/fleet/mode";
 import { mockNodes, type Node } from "@/lib/mock";
+
+import type { Certificate } from "@/gen/fleet/cryptos/fleet/v1/fleet_pb";
 
 export type CertKind = "leaf" | "subordinate-ca";
 export type CertStatus = "EXPIRED" | "REVOKED" | "VALID";
@@ -185,21 +189,105 @@ const EMPTY: Cert[] = [];
 export const certsFor = (nodeName: string): Cert[] => byNode.get(nodeName) ?? EMPTY;
 export const getCert = (serial: string): Cert | undefined => certs.find((c) => c.serial === serial);
 
-export const useCerts = (nodeName: string): Cert[] =>
-  useSyncExternalStore(
-    subscribe,
-    () => certsFor(nodeName),
-    () => certsFor(nodeName),
+// The live certificate set, populated by ListCertificates over Connect. A
+// separate store from the mock certs above: `live`/`live-auth` read this
+// array and never touch the mock one, so flipping VITE_FLEET_MODE never
+// mixes the two. Mirrors the live-store pattern in lib/nodes.ts.
+let liveCerts: Cert[] = [];
+const liveListeners = new Set<() => void>();
+const emitLive = (): void => {
+  for (const l of liveListeners) l();
+};
+const subscribeLive = (l: () => void): (() => void) => {
+  liveListeners.add(l);
+  return () => liveListeners.delete(l);
+};
+
+const knownCertKinds = new Set<CertKind>(["leaf", "subordinate-ca"]);
+const knownCertStatuses = new Set<CertStatus>(["EXPIRED", "REVOKED", "VALID"]);
+
+// Certificate -> the web Cert shape. The manager's read-through view only
+// carries what the proto message defines, so `sans`/`eku` (not tracked by
+// the live source) default to an empty array rather than being left
+// undefined -- the certificates page and node cert-inventory render the
+// same fixed shape whether the data came from the mock store or the manager.
+const fromCertificate = (certificate: Certificate): Cert => ({
+  eku: [],
+  issuedAt: certificate.notBefore,
+  issuerNodeName: certificate.issuerNode,
+  kind: knownCertKinds.has(certificate.kind as CertKind) ? (certificate.kind as CertKind) : "leaf",
+  notAfter: certificate.notAfter,
+  notBefore: certificate.notBefore,
+  profile: certificate.profile || undefined,
+  reason: certificate.reason ? (certificate.reason as RevocationReason) : undefined,
+  revokedAt: certificate.revokedAt || undefined,
+  sans: [],
+  serial: certificate.serial,
+  status: knownCertStatuses.has(certificate.status as CertStatus)
+    ? (certificate.status as CertStatus)
+    : "VALID",
+  subjectCn: certificate.subjectCn,
+});
+
+const CERT_POLL_INTERVAL_MS = 10_000;
+
+// Fetches ListCertificates once and (for `live`/`live-auth`) keeps polling on
+// an interval so a newly issued/revoked cert is picked up without a reload.
+// Errors are swallowed to a console warning: a manager outage should degrade
+// the certificates view to whatever it last had, not throw the page into an
+// error boundary.
+const refreshLiveCerts = async (node?: string): Promise<void> => {
+  try {
+    const response = await fleetClient().listCertificates({ node: node ?? "" });
+    liveCerts = response.certificates.map(fromCertificate);
+    emitLive();
+  } catch (error) {
+    // eslint-disable-next-line no-console -- surfaced for local live debugging
+    console.warn("fleet: ListCertificates failed", error);
+  }
+};
+
+export const useCerts = (nodeName: string): Cert[] => {
+  const mode = fleetMode();
+
+  useEffect(() => {
+    if (mode === "mock") return;
+    void refreshLiveCerts(nodeName);
+    const interval = setInterval(() => void refreshLiveCerts(nodeName), CERT_POLL_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [mode, nodeName]);
+
+  return useSyncExternalStore(
+    mode === "mock" ? subscribe : subscribeLive,
+    () =>
+      mode === "mock" ? certsFor(nodeName) : liveCerts.filter((c) => c.issuerNodeName === nodeName),
+    () =>
+      mode === "mock" ? certsFor(nodeName) : liveCerts.filter((c) => c.issuerNodeName === nodeName),
   );
+};
 
 export const allCerts = (): Cert[] => certs;
-export const useAllCerts = (): Cert[] =>
-  useSyncExternalStore(
-    subscribe,
-    () => certs,
-    () => certs,
-  );
+export const useAllCerts = (): Cert[] => {
+  const mode = fleetMode();
 
+  useEffect(() => {
+    if (mode === "mock") return;
+    void refreshLiveCerts();
+    const interval = setInterval(() => void refreshLiveCerts(), CERT_POLL_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [mode]);
+
+  return useSyncExternalStore(
+    mode === "mock" ? subscribe : subscribeLive,
+    () => (mode === "mock" ? certs : liveCerts),
+    () => (mode === "mock" ? certs : liveCerts),
+  );
+};
+
+// live writes: roadmap -- issueCert/revokeCert/renewCert stay mock-only for
+// this read-only run; they mutate the mock store regardless of fleetMode(),
+// and a live manager write path (IssueCertificate/RevokeCertificate) isn't
+// wired yet.
 let nextSerial = 10_000;
 export const issueCert = (issuerNodeName: string, draft: IssueDraft): Cert => {
   const cert: Cert = {
