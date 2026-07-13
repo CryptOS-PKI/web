@@ -75,6 +75,10 @@ export const TopologyExplorer = ({
   const [focus, setFocus] = useState<null | string>(null);
   const allNodes = useNodes();
   const rootCount = allNodes.filter((n) => n.role === "root").length;
+  // Cold load in `live`/`live-auth` mode: ListNodes hasn't resolved yet, so
+  // allNodes is empty and neither the selected name nor allNodes[0] resolves
+  // to a node. Stay undefined here (never mockNodes[0]) and render a loading
+  // state below rather than dereference it.
   const node = getNode(selected) ?? allNodes[0];
 
   const action = singlePath
@@ -140,8 +144,19 @@ export const TopologyExplorer = ({
         </div>
 
         <div className="w-full rounded-xl border bg-card">
-          <PanelHeader label={`Node · ${node.name}`} />
-          <NodeDetailPanel node={node} />
+          {node ? (
+            <>
+              <PanelHeader label={`Node · ${node.name}`} />
+              <NodeDetailPanel node={node} />
+            </>
+          ) : (
+            <>
+              <PanelHeader label="Node" />
+              <p className="p-4 text-sm text-muted-foreground">
+                {allNodes.length === 0 ? "Loading fleet\u2026" : "No nodes."}
+              </p>
+            </>
+          )}
         </div>
       </div>
     </section>

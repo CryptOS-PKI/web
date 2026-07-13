@@ -16,13 +16,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 
-import { mockNodes, type Node } from "@/lib/mock";
+import { fleetClient } from "@/lib/fleet/client";
+import { fleetMode } from "@/lib/fleet/mode";
+import { mockNodes, type IdentityState, type Node } from "@/lib/mock";
 
-// The live fleet. Seeded from the mock fixture; mutated by enrollment approval
+import type { NodeSummary } from "@/gen/fleet/cryptos/fleet/v1/fleet_pb";
+
+// The mock fleet. Seeded from the mock fixture; mutated by enrollment approval
 // (addNode). useSyncExternalStore lets the topology, nodes table, and root list
-// re-render when the fleet changes, and is the seam a live provider drops into.
+// re-render when the fleet changes. This path is unchanged by the live seam
+// below -- `mock` mode never touches the live store.
 let nodes: Node[] = [...mockNodes];
 const listeners = new Set<() => void>();
 const emit = (): void => {
@@ -34,19 +39,86 @@ const subscribe = (l: () => void): (() => void) => {
 };
 
 export const nodesList = (): Node[] => nodes;
-export const getNode = (name: string): Node | undefined => nodes.find((n) => n.name === name);
+export const getNode = (name: string): Node | undefined =>
+  (fleetMode() === "mock" ? nodes : liveNodes).find((n) => n.name === name);
 export const getNodeByCn = (cn: string): Node | undefined => nodes.find((n) => n.cn === cn);
-
-export const useNodes = (): Node[] =>
-  useSyncExternalStore(
-    subscribe,
-    () => nodes,
-    () => nodes,
-  );
 
 export const addNode = (node: Node): void => {
   nodes = [...nodes, node];
   emit();
+};
+
+// The live fleet, populated by ListNodes over Connect. A separate store from
+// the mock fleet above: `live`/`live-auth` read this array and never touch the
+// mock one, so flipping VITE_FLEET_MODE never mixes the two.
+let liveNodes: Node[] = [];
+const liveListeners = new Set<() => void>();
+const emitLive = (): void => {
+  for (const l of liveListeners) l();
+};
+const subscribeLive = (l: () => void): (() => void) => {
+  liveListeners.add(l);
+  return () => liveListeners.delete(l);
+};
+
+const knownIdentityStates = new Set<IdentityState>(["ESTABLISHED", "AWAITING_CERT", "REVOKED"]);
+
+// NodeSummary -> the web Node shape. The manager's read-through view only
+// carries what a node reports over its status/identity RPCs, so every field
+// the summary lacks (issued/revoked counts, tpm, crl/ocsp, parentCn, ...) gets
+// a display-safe default rather than being left undefined -- the existing
+// pages (nodes table, fleet topology, node detail panel) render the same
+// fixed shape whether the data came from the mock store or the manager.
+const fromSummary = (summary: NodeSummary): Node => ({
+  address: summary.address,
+  bootCount: 0,
+  cn: summary.cn,
+  fleetManager: { linked: summary.health === 1 },
+  identityState: knownIdentityStates.has(summary.identityState as IdentityState)
+    ? (summary.identityState as IdentityState)
+    : "AWAITING_CERT",
+  issued: 0,
+  issuer: summary.issuer,
+  name: summary.name,
+  revoked: 0,
+  role: (summary.role || "issuing") as Node["role"],
+  tpm: summary.healthDetail || "UNKNOWN",
+  uptime: "",
+});
+
+const NODE_POLL_INTERVAL_MS = 10_000;
+
+// Fetches ListNodes once and (for `live`/`live-auth`) keeps polling on an
+// interval so a node's health/identity flips are picked up without a reload.
+// Errors are swallowed to a console warning: a manager outage should degrade
+// the fleet view to whatever it last had, not throw the page into an error
+// boundary.
+const refreshLiveNodes = async (): Promise<void> => {
+  try {
+    const response = await fleetClient().listNodes({});
+    liveNodes = response.nodes.map(fromSummary);
+    emitLive();
+  } catch (error) {
+    // eslint-disable-next-line no-console -- surfaced for local live debugging
+    console.warn("fleet: ListNodes failed", error);
+  }
+};
+
+export const useNodes = (): Node[] => {
+  const mode = fleetMode();
+
+  useEffect(() => {
+    if (mode === "mock") return;
+    void refreshLiveNodes();
+    const interval = setInterval(() => void refreshLiveNodes(), NODE_POLL_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [mode]);
+
+  return useSyncExternalStore(
+    mode === "mock" ? subscribe : subscribeLive,
+    () => (mode === "mock" ? nodes : liveNodes),
+    () => (mode === "mock" ? nodes : liveNodes),
+  );
 };
 
 // The trust chain from the root down to this node, following parentCn. Guards a

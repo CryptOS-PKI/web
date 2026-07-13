@@ -1,0 +1,31 @@
+/*
+Apache License 2.0
+
+Copyright 2026 Shane
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+// The single data-source seam for the Fleet Manager web UI. `mock` (the
+// default) keeps every surface on the existing in-memory fixtures; `live`
+// routes reads through the manager over Connect; `live-auth` is the same live
+// path with the gateway session attached (not yet lit -- treated as `live`
+// until the BFF/session wiring lands). Unset or unrecognized values fall back
+// to `mock` so a missing env var never accidentally goes live.
+export type FleetMode = "live" | "live-auth" | "mock";
+
+export const fleetMode = (): FleetMode => {
+  const raw = import.meta.env.VITE_FLEET_MODE;
+  if (raw === "live" || raw === "live-auth") return raw;
+  return "mock";
+};

@@ -2,9 +2,15 @@
 <html class="dark" lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!--
+      connect-src allows localhost/127.0.0.1 (http + ws) so `live` mode can
+      fetch the local dev manager (VITE_FLEET_API) and vite HMR keeps working.
+      This is a local-dev allowance only -- production (`live-auth`, same
+      origin) should tighten connect-src back to 'self'.
+    -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'"
+      content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; connect-src 'self' http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*"
     />
     <link
       rel="icon"
