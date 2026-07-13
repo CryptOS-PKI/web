@@ -26,6 +26,12 @@ import globals from "globals";
 // React Fast Refresh and the React Hooks rules are Vite-app concerns not in the
 // shared config, so they are layered on here alongside it.
 export default [
+  {
+    // Vendored Connect-ES stubs bridged in from the api repo's generated TS
+    // output (see src/gen/fleet's header comment); regenerated there, not
+    // hand-edited here, so none of the source conventions below apply.
+    ignores: ["src/gen/**"],
+  },
   ...createESLintConfig(),
   {
     // A few of the shared config's Unicorn defaults fight conventions this repo

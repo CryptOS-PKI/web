@@ -16,7 +16,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
+
+import { fleetClient } from "@/lib/fleet/client";
+import { fleetMode } from "@/lib/fleet/mode";
+
+import type { AuditEvent as ProtoAuditEvent } from "@/gen/fleet/cryptos/fleet/v1/fleet_pb";
 
 // Leaf store: imports NO domain store (domain stores import recordAudit from
 // here). Own fixed clock keeps events deterministic without Date.now().
@@ -135,12 +140,89 @@ const subscribe = (l: () => void): (() => void) => {
 };
 
 export const auditList = (): AuditEvent[] => events;
-export const useAudit = (): AuditEvent[] =>
-  useSyncExternalStore(
-    subscribe,
-    () => events,
-    () => events,
+
+// The live audit log, populated by ListAudit over Connect. A separate store
+// from the mock log above: `live`/`live-auth` read this array and never
+// touch the mock one, so flipping VITE_FLEET_MODE never mixes the two.
+// Mirrors the live-store pattern in lib/nodes.ts.
+let liveEvents: AuditEvent[] = [];
+const liveListeners = new Set<() => void>();
+const emitLive = (): void => {
+  for (const l of liveListeners) l();
+};
+const subscribeLive = (l: () => void): (() => void) => {
+  liveListeners.add(l);
+  return () => liveListeners.delete(l);
+};
+
+const knownAuditKinds = new Set<AuditKind>([
+  "config-applied",
+  "enroll-approved",
+  "enroll-rejected",
+  "issued",
+  "profile-created",
+  "profile-updated",
+  "protocol-toggled",
+  "rekeyed",
+  "renewed",
+  "revoked",
+]);
+const knownTargetKinds = new Set<NonNullable<AuditEvent["targetKind"]>>([
+  "cert",
+  "enrollment",
+  "node",
+  "profile",
+  "protocol",
+]);
+
+// AuditEvent (proto) -> the web AuditEvent shape. kind is narrowed to the
+// known AuditKind union, falling back to "config-applied" (a benign,
+// non-destructive-sounding kind) for an unrecognized value.
+const fromProtoEvent = (event: ProtoAuditEvent): AuditEvent => ({
+  at: event.at,
+  id: event.id,
+  kind: knownAuditKinds.has(event.kind as AuditKind) ? (event.kind as AuditKind) : "config-applied",
+  summary: event.summary,
+  targetKind: knownTargetKinds.has(event.targetKind as NonNullable<AuditEvent["targetKind"]>)
+    ? (event.targetKind as NonNullable<AuditEvent["targetKind"]>)
+    : undefined,
+  targetPath: event.targetPath || undefined,
+});
+
+const AUDIT_POLL_INTERVAL_MS = 10_000;
+
+// Fetches ListAudit once and (for `live`/`live-auth`) keeps polling on an
+// interval so a newly recorded event is picked up without a reload. Errors
+// are swallowed to a console warning: a manager outage should degrade the
+// audit view to whatever it last had, not throw the page into an error
+// boundary.
+const refreshLiveAudit = async (): Promise<void> => {
+  try {
+    const response = await fleetClient().listAudit({});
+    liveEvents = response.items.map(fromProtoEvent);
+    emitLive();
+  } catch (error) {
+    // eslint-disable-next-line no-console -- surfaced for local live debugging
+    console.warn("fleet: ListAudit failed", error);
+  }
+};
+
+export const useAudit = (): AuditEvent[] => {
+  const mode = fleetMode();
+
+  useEffect(() => {
+    if (mode === "mock") return;
+    void refreshLiveAudit();
+    const interval = setInterval(() => void refreshLiveAudit(), AUDIT_POLL_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [mode]);
+
+  return useSyncExternalStore(
+    mode === "mock" ? subscribe : subscribeLive,
+    () => (mode === "mock" ? events : liveEvents),
+    () => (mode === "mock" ? events : liveEvents),
   );
+};
 
 let nextId = 1000;
 export const recordAudit = (e: Omit<AuditEvent, "at" | "id">): void => {

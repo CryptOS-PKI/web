@@ -6,6 +6,7 @@ node_modules
 # Generated / non-app files
 package-lock.json
 CHANGELOG.md
+src/gen
 
 # Repo governance and tooling config (owned by the project template, not the app)
 .github
