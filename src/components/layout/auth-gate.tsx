@@ -31,6 +31,18 @@ export const AuthGate = ({ children }: { children: ReactNode }) => {
     return <>{children}</>;
   }
 
+  if (status === "denied") {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-background">
+        <Wordmark className="text-2xl" />
+        <div className="flex flex-col items-center gap-2 font-mono text-sm text-muted-foreground">
+          <span className="text-destructive">No valid operator certificate</span>
+          <span>Install an operator certificate issued by this fleet&apos;s PKI to continue.</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-background">
       <Wordmark className="text-2xl" />
