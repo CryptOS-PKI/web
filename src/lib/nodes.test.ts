@@ -19,7 +19,14 @@ limitations under the License.
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { mockNodes } from "@/lib/mock";
-import { __resetNodes, addNode, chainToRoot, getNode, nodesList } from "@/lib/nodes";
+import { __resetNodes, addNode, chainToRoot, fromSummary, getNode, nodesList } from "@/lib/nodes";
+
+import type { NodeSummary } from "@/gen/fleet/cryptos/fleet/v1/fleet_pb";
+
+// A NodeSummary carries only the fields the manager's read-through view sets;
+// the mapper defaults the rest. Cast a partial rather than build the full
+// protobuf message shape, since fromSummary reads only these fields.
+const summary = (fields: Partial<NodeSummary>): NodeSummary => fields as NodeSummary;
 
 describe("nodes store", () => {
   beforeEach(() => __resetNodes());
@@ -53,6 +60,46 @@ describe("nodes store", () => {
     expect(nodesList()).not.toBe(before);
     expect(nodesList().length).toBe(before.length + 1);
     expect(getNode("acme-issuing-x9")?.cn).toBe("ACME Issuing CA X9");
+  });
+});
+
+describe("fromSummary", () => {
+  it("derives parentCn from issuer for a subordinate (issuer !== cn)", () => {
+    const node = fromSummary(
+      summary({
+        name: "pki-inter",
+        cn: "ACME Intermediate CA",
+        issuer: "ACME Root CA",
+        role: "intermediate",
+      }),
+    );
+    expect(node.parentCn).toBe("ACME Root CA");
+  });
+
+  it("leaves a self-signed root parentless (issuer === cn)", () => {
+    const node = fromSummary(
+      summary({ name: "pki-root", cn: "ACME Root CA", issuer: "ACME Root CA", role: "root" }),
+    );
+    expect(node.parentCn).toBeUndefined();
+  });
+
+  it("leaves parentCn undefined when issuer is empty", () => {
+    const node = fromSummary(summary({ name: "pki-root", cn: "ACME Root CA", issuer: "" }));
+    expect(node.parentCn).toBeUndefined();
+  });
+
+  it("marks the node linked only when health is UP (1)", () => {
+    expect(fromSummary(summary({ name: "up", health: 1 })).fleetManager.linked).toBe(true);
+    expect(fromSummary(summary({ name: "down", health: 2 })).fleetManager.linked).toBe(false);
+  });
+
+  it("passes through a known identityState and defaults an unknown one", () => {
+    expect(fromSummary(summary({ name: "a", identityState: "ESTABLISHED" })).identityState).toBe(
+      "ESTABLISHED",
+    );
+    expect(fromSummary(summary({ name: "b", identityState: "BOGUS" })).identityState).toBe(
+      "AWAITING_CERT",
+    );
   });
 });
 
