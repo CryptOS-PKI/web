@@ -69,7 +69,7 @@ const knownIdentityStates = new Set<IdentityState>(["ESTABLISHED", "AWAITING_CER
 // a display-safe default rather than being left undefined -- the existing
 // pages (nodes table, fleet topology, node detail panel) render the same
 // fixed shape whether the data came from the mock store or the manager.
-const fromSummary = (summary: NodeSummary): Node => ({
+export const fromSummary = (summary: NodeSummary): Node => ({
   address: summary.address,
   bootCount: 0,
   cn: summary.cn,
@@ -80,6 +80,10 @@ const fromSummary = (summary: NodeSummary): Node => ({
   issued: 0,
   issuer: summary.issuer,
   name: summary.name,
+  // A subordinate's issuer names its parent CA's subject CN, which is how the
+  // topology links it under the root; a self-signed root (issuer === cn) has no
+  // parent.
+  parentCn: summary.issuer && summary.issuer !== summary.cn ? summary.issuer : undefined,
   revoked: 0,
   role: (summary.role || "issuing") as Node["role"],
   tpm: summary.healthDetail || "UNKNOWN",
