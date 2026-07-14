@@ -30,5 +30,6 @@ export const fleetClient = () =>
     FleetService,
     createConnectTransport({
       baseUrl: import.meta.env.VITE_FLEET_API ?? "http://localhost:8080",
+      fetch: (input, init) => fetch(input, { ...init, credentials: "include" }),
     }),
   );
