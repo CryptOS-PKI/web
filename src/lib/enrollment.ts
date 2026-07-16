@@ -320,7 +320,10 @@ const mockRejectEnrollment = (id: string, reason: string): void => {
 // (the enrollment page surfaces them) rather than being swallowed here.
 export const createEnrollment = async (draft: EnrollmentCreateDraft): Promise<void> => {
   if (fleetMode() === "mock") {
-    if (draft.kind !== "SUBORDINATE") return;
+    if (draft.kind !== "SUBORDINATE") {
+      // No mock LINK fixture exists; surface it rather than a silent false success.
+      throw new Error("LINK enrollment requires live mode (attestation is not mocked)");
+    }
     mockRequestEnrollment({
       address: "",
       attestation: { nodeId: "", tpm: "" },
