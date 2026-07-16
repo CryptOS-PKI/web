@@ -155,7 +155,7 @@ const subscribe = (l: () => void): (() => void) => {
 
 export const enrollmentsList = (): EnrollmentRequest[] => requests;
 export const getEnrollment = (id: string): EnrollmentRequest | undefined =>
-  requests.find((r) => r.id === id);
+  (fleetMode() === "mock" ? requests : liveRequests).find((r) => r.id === id);
 
 // The live enrollment queue, populated by ListEnrollments over Connect. A
 // separate store from the mock queue above: `live`/`live-auth` read this
