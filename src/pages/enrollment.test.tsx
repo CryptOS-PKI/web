@@ -16,18 +16,37 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { __resetEnrollments, approveEnrollment, enrollmentsList } from "@/lib/enrollment";
+import type { OperatorLevel } from "@/context/auth";
+
+import {
+  __resetEnrollments,
+  approveEnrollment,
+  createEnrollment,
+  enrollmentsList,
+} from "@/lib/enrollment";
 import { __resetNodes } from "@/lib/nodes";
 import { EnrollmentPage } from "@/pages/enrollment";
+
+const mockOperator = vi.fn<() => { level: OperatorLevel } | null>(() => ({ level: "admin" }));
+vi.mock("@/context/auth", () => ({
+  useAuth: () => ({ operator: mockOperator(), status: "authenticated" }),
+}));
+
+vi.mock("@/lib/enrollment", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/enrollment")>("@/lib/enrollment");
+  return { ...actual, createEnrollment: vi.fn(actual.createEnrollment) };
+});
 
 describe("EnrollmentPage", () => {
   beforeEach(() => {
     __resetNodes();
     __resetEnrollments();
+    mockOperator.mockReturnValue({ level: "admin" });
+    vi.mocked(createEnrollment).mockClear();
   });
 
   it("lists a pending request linking to its detail", () => {
@@ -41,6 +60,15 @@ describe("EnrollmentPage", () => {
       "href",
       `/enrollment/${first.id}`,
     );
+  });
+
+  it("shows a kind badge per row", () => {
+    render(
+      <MemoryRouter>
+        <EnrollmentPage />
+      </MemoryRouter>,
+    );
+    expect(screen.getAllByText("SUBORDINATE").length).toBeGreaterThan(0);
   });
 
   it("simulate incoming request adds a pending row", () => {
@@ -70,5 +98,69 @@ describe("EnrollmentPage", () => {
 
     expect(screen.getByText(pending.proposedName)).toBeInTheDocument();
     expect(screen.queryByText(approved.proposedName)).not.toBeInTheDocument();
+  });
+
+  it("disables New enrollment for a viewer", () => {
+    mockOperator.mockReturnValue({ level: "viewer" });
+    render(
+      <MemoryRouter>
+        <EnrollmentPage />
+      </MemoryRouter>,
+    );
+    expect(screen.getByRole("button", { name: /new enrollment/i })).toBeDisabled();
+    expect(screen.getByText(/read-only/i)).toBeInTheDocument();
+  });
+
+  it("submits a SUBORDINATE create draft", async () => {
+    render(
+      <MemoryRouter>
+        <EnrollmentPage />
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /^new enrollment$/i }));
+    fireEvent.change(screen.getByLabelText(/child node/i), {
+      target: { value: "acme-issuing-99" },
+    });
+    fireEvent.change(screen.getByLabelText(/parent cn/i), {
+      target: { value: "ACME Intermediate CA G1" },
+    });
+    fireEvent.change(screen.getByLabelText(/profile/i), { target: { value: "issuing-ca" } });
+    fireEvent.click(screen.getByRole("button", { name: /^submit$/i }));
+
+    await waitFor(() =>
+      expect(createEnrollment).toHaveBeenCalledWith({
+        childNode: "acme-issuing-99",
+        kind: "SUBORDINATE",
+        parentCn: "ACME Intermediate CA G1",
+        profile: "issuing-ca",
+      }),
+    );
+  });
+
+  it("submits a LINK create draft with its material", async () => {
+    render(
+      <MemoryRouter>
+        <EnrollmentPage />
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /^new enrollment$/i }));
+    fireEvent.change(screen.getByLabelText(/^kind$/i), { target: { value: "LINK" } });
+    fireEvent.change(screen.getByLabelText(/node endpoint/i), {
+      target: { value: "10.20.5.10:8443" },
+    });
+    fireEvent.change(screen.getByLabelText(/admin cert/i), { target: { value: "cert-pem" } });
+    fireEvent.change(screen.getByLabelText(/admin key/i), { target: { value: "key-pem" } });
+    fireEvent.change(screen.getByLabelText(/^ca \(pem\)$/i), { target: { value: "ca-pem" } });
+    fireEvent.click(screen.getByRole("button", { name: /^submit$/i }));
+
+    await waitFor(() =>
+      expect(createEnrollment).toHaveBeenCalledWith({
+        adminCertPem: "cert-pem",
+        adminKeyPem: "key-pem",
+        caPem: "ca-pem",
+        kind: "LINK",
+        nodeEndpoint: "10.20.5.10:8443",
+      }),
+    );
   });
 });
