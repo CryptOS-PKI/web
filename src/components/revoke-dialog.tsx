@@ -39,10 +39,18 @@ export const RevokeDialog = ({
   subjectCn: string;
 }) => {
   const [reason, setReason] = useState<RevocationReason>("keyCompromise");
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<null | string>(null);
 
   const confirm = () => {
-    revokeCert(serial, reason);
-    onClose();
+    setPending(true);
+    setError(null);
+    revokeCert(serial, reason)
+      .then(onClose)
+      .catch((error_: unknown) => {
+        setError(error_ instanceof Error ? error_.message : "Revoke failed");
+        setPending(false);
+      });
   };
 
   return (
@@ -82,12 +90,17 @@ export const RevokeDialog = ({
             ))}
           </select>
         </label>
+        {error ? (
+          <p className="font-mono text-xs text-destructive" role="alert">
+            {error}
+          </p>
+        ) : null}
         <div className="flex justify-end gap-2">
-          <Button onClick={onClose} size="sm" variant="outline">
+          <Button disabled={pending} onClick={onClose} size="sm" variant="outline">
             Cancel
           </Button>
-          <Button onClick={confirm} size="sm" variant="destructive">
-            Revoke
+          <Button disabled={pending} onClick={confirm} size="sm" variant="destructive">
+            {pending ? "Revoking…" : "Revoke"}
           </Button>
         </div>
       </div>

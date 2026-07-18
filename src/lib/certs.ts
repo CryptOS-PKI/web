@@ -284,10 +284,9 @@ export const useAllCerts = (): Cert[] => {
   );
 };
 
-// live writes: roadmap -- issueCert/revokeCert/renewCert stay mock-only for
-// this read-only run; they mutate the mock store regardless of fleetMode(),
-// and a live manager write path (IssueCertificate/RevokeCertificate) isn't
-// wired yet.
+// live writes: issueCert/renewCert stay mock-only for now; revokeCert is the
+// first write wired through to the manager (RevokeCertificate). In `mock` mode
+// every write still mutates the in-memory store regardless of fleetMode().
 let nextSerial = 10_000;
 export const issueCert = (issuerNodeName: string, draft: IssueDraft): Cert => {
   const cert: Cert = {
@@ -316,20 +315,41 @@ export const issueCert = (issuerNodeName: string, draft: IssueDraft): Cert => {
   return cert;
 };
 
-export const revokeCert = (serial: string, reason: RevocationReason): void => {
-  certs = certs.map((c) =>
-    c.serial === serial ? { ...c, reason, revokedAt: daysFromNow(0), status: "REVOKED" } : c,
-  );
-  reindex();
-  emit();
-  const rc = getCert(serial);
-  if (rc)
-    recordAudit({
-      kind: "revoked",
-      summary: `Revoked ${rc.subjectCn} (${reason})`,
-      targetKind: "cert",
-      targetPath: `/nodes/${rc.issuerNodeName}/certs/${serial}`,
-    });
+// RFC 5280 CRLReason codes for the reasons the revoke dialog offers. The
+// manager forwards this code to the issuing node's RevokeCertificate unchanged.
+const REASON_CODE: Record<RevocationReason, number> = {
+  unspecified: 0,
+  keyCompromise: 1,
+  affiliationChanged: 3,
+  superseded: 4,
+  cessationOfOperation: 5,
+};
+
+export const revokeCert = async (serial: string, reason: RevocationReason): Promise<void> => {
+  if (fleetMode() === "mock") {
+    certs = certs.map((c) =>
+      c.serial === serial ? { ...c, reason, revokedAt: daysFromNow(0), status: "REVOKED" } : c,
+    );
+    reindex();
+    emit();
+    const rc = getCert(serial);
+    if (rc)
+      recordAudit({
+        kind: "revoked",
+        summary: `Revoked ${rc.subjectCn} (${reason})`,
+        targetKind: "cert",
+        targetPath: `/nodes/${rc.issuerNodeName}/certs/${serial}`,
+      });
+    return;
+  }
+
+  const cert = liveCerts.find((c) => c.serial === serial);
+  await fleetClient().revokeCertificate({
+    nodeName: cert?.issuerNodeName ?? "",
+    serialHex: serial,
+    reasonCode: REASON_CODE[reason],
+  });
+  if (cert) await refreshLiveCerts(cert.issuerNodeName);
 };
 
 // Renew: issue a fresh cert with the same subject/profile/kind/sans/eku and a
