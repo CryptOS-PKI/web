@@ -349,7 +349,9 @@ export const revokeCert = async (serial: string, reason: RevocationReason): Prom
     serialHex: serial,
     reasonCode: REASON_CODE[reason],
   });
-  if (cert) await refreshLiveCerts(cert.issuerNodeName);
+  // Refetch unfiltered: refreshLiveCerts replaces the whole cache, so a
+  // node-scoped refetch would transiently collapse the all-nodes view.
+  await refreshLiveCerts();
 };
 
 // Renew: issue a fresh cert with the same subject/profile/kind/sans/eku and a
