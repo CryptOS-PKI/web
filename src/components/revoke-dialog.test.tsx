@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { RevokeDialog } from "@/components/revoke-dialog";
@@ -25,8 +25,8 @@ import { __resetCerts, certsFor, issueCert } from "@/lib/certs";
 describe("RevokeDialog", () => {
   beforeEach(() => __resetCerts());
 
-  it("revokes with the chosen reason and closes", () => {
-    const cert = issueCert("acme-issuing-01", {
+  it("revokes with the chosen reason and closes", async () => {
+    const cert = await issueCert("acme-issuing-01", {
       kind: "leaf",
       subjectCn: "x.acme.example",
       validityDays: 30,
@@ -38,6 +38,6 @@ describe("RevokeDialog", () => {
     expect(certsFor("acme-issuing-01").find((c) => c.serial === cert.serial)?.status).toBe(
       "REVOKED",
     );
-    expect(onClose).toHaveBeenCalled();
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
   });
 });
