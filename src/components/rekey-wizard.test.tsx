@@ -23,6 +23,7 @@ import { RekeyWizard } from "@/components/rekey-wizard";
 import { mockNodes, type Node } from "@/lib/mock";
 
 const issuingNode = (): Node => mockNodes.find((n) => n.name === "acme-issuing-01")!;
+const rootNode = (): Node => mockNodes.find((n) => n.name === "acme-root-01")!;
 
 const rekeyNode = vi.fn();
 let mode: "live" | "mock" = "mock";
@@ -78,5 +79,12 @@ describe("RekeyWizard (live)", () => {
 
     expect(await screen.findByText(/parent not in fleet/i)).toBeInTheDocument();
     expect(screen.queryByText(/re-key complete/i)).not.toBeInTheDocument();
+  });
+
+  it("does not offer re-key for a root CA and makes no RPC", () => {
+    render(<RekeyWizard node={rootNode()} />);
+    expect(screen.getByText(/only for subordinate CAs/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /re-key/i })).not.toBeInTheDocument();
+    expect(rekeyNode).not.toHaveBeenCalled();
   });
 });

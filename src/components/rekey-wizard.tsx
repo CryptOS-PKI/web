@@ -90,6 +90,17 @@ const LiveRekey = ({ node }: { node: Node }) => {
     }
   };
 
+  // A self-signed root is its own issuer, so there is no parent to sign a
+  // rotation CSR; the manager refuses it. Don't offer the action for roots.
+  if (node.role === "root") {
+    return (
+      <p className="max-w-md font-mono text-sm text-muted-foreground">
+        {node.name} is a root CA. Re-keying through the manager is only for subordinate CAs — a root
+        has no parent to sign its new key.
+      </p>
+    );
+  }
+
   if (result) {
     return (
       <div className="max-w-md space-y-1 rounded-md border bg-secondary p-3">
