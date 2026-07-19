@@ -44,13 +44,16 @@ export interface EnrollmentDraft {
   proposedName: string;
   role: NodeRole;
 }
+export type EnrollmentKind = "LINK" | "SUBORDINATE";
 export interface EnrollmentRequest {
   address: string;
   admittedNodeName?: string;
   attestation: Attestation;
   csr: Csr;
   id: string;
+  kind: EnrollmentKind;
   parentCn: string;
+  pinnedKeySha256?: string;
   proposedName: string;
   rejectionReason?: string;
   requestedAt: string;
@@ -58,6 +61,23 @@ export interface EnrollmentRequest {
   status: EnrollmentStatus;
 }
 export type EnrollmentStatus = "APPROVED" | "PENDING" | "REJECTED";
+
+// LINK approval material, re-supplied at approval time (nothing sensitive is
+// persisted between CreateEnrollment and ApproveEnrollment). Required for a
+// LINK request's approval; omitted for SUBORDINATE.
+export interface LinkApprovalMaterial {
+  adminCertPem: string;
+  adminKeyPem: string;
+  caPem: string;
+  nodeEndpoint: string;
+}
+
+// The two enrollment shapes CreateEnrollment accepts: LINK carries the node
+// connection + trust material, SUBORDINATE carries the child/parent/profile
+// for a CSR-ferried provision.
+export type EnrollmentCreateDraft =
+  | { adminCertPem: string; adminKeyPem: string; caPem: string; kind: "LINK"; nodeEndpoint: string }
+  | { childNode: string; kind: "SUBORDINATE"; parentCn: string; profile: string };
 
 // All enrolling nodes are CAs (intermediate or issuing), so the parent must be
 // able to issue a subordinate-ca cert. When leaf-node requesters are added
@@ -90,6 +110,7 @@ const seed = (): EnrollmentRequest[] => [
     attestation: { nodeId: "nid-7f3a", tpm: "TPM · sealed" },
     csr: { keyType: "ECDSA P-384", subjectCn: "ACME Issuing CA G4" },
     id: "enr-0001",
+    kind: "SUBORDINATE",
     parentCn: "ACME Intermediate CA G1",
     proposedName: "acme-issuing-04",
     requestedAt: daysFromNow(-1),
@@ -101,6 +122,7 @@ const seed = (): EnrollmentRequest[] => [
     attestation: { nodeId: "nid-2b9c", tpm: "TPM · sealed" },
     csr: { keyType: "ECDSA P-384", subjectCn: "ACME Intermediate CA R3" },
     id: "enr-0002",
+    kind: "SUBORDINATE",
     parentCn: "ACME Root CA R2",
     proposedName: "acme-intermediate-04",
     requestedAt: daysFromNow(-2),
@@ -112,6 +134,7 @@ const seed = (): EnrollmentRequest[] => [
     attestation: { nodeId: "nid-9d11", tpm: "UNAVAILABLE · nodeID" },
     csr: { keyType: "ECDSA P-256", subjectCn: "ACME Issuing CA H3" },
     id: "enr-0003",
+    kind: "SUBORDINATE",
     parentCn: "ACME Intermediate CA G2", // REVOKED parent -> cannot approve
     proposedName: "acme-issuing-h03",
     requestedAt: daysFromNow(-3),
@@ -132,7 +155,7 @@ const subscribe = (l: () => void): (() => void) => {
 
 export const enrollmentsList = (): EnrollmentRequest[] => requests;
 export const getEnrollment = (id: string): EnrollmentRequest | undefined =>
-  requests.find((r) => r.id === id);
+  (fleetMode() === "mock" ? requests : liveRequests).find((r) => r.id === id);
 
 // The live enrollment queue, populated by ListEnrollments over Connect. A
 // separate store from the mock queue above: `live`/`live-auth` read this
@@ -150,14 +173,16 @@ const subscribeLive = (l: () => void): (() => void) => {
 
 const knownRoles = new Set<NodeRole>(["root", "intermediate", "issuing"]);
 const knownStatuses = new Set<EnrollmentStatus>(["APPROVED", "PENDING", "REJECTED"]);
+const knownKinds = new Set<EnrollmentKind>(["LINK", "SUBORDINATE"]);
 
 // EnrollmentRequest (proto) -> the web EnrollmentRequest shape. The proto
 // flattens attestation/CSR detail to display strings for this read-only
 // surface, so the nested `Attestation`/`Csr` shapes the web type needs are
 // reconstructed from them: attestation_summary becomes the `tpm` display
 // string (its role for mock data), attestation_node_id becomes `nodeId`; the
-// CSR's key type/subject come across as-is.
-const fromProtoRequest = (request: ProtoEnrollmentRequest): EnrollmentRequest => ({
+// CSR's key type/subject come across as-is. `kind` defaults to SUBORDINATE
+// when empty for back-compat with older/mock data that predates the field.
+export const fromProtoRequest = (request: ProtoEnrollmentRequest): EnrollmentRequest => ({
   address: request.address,
   admittedNodeName: request.admittedNodeName || undefined,
   attestation: {
@@ -169,7 +194,11 @@ const fromProtoRequest = (request: ProtoEnrollmentRequest): EnrollmentRequest =>
     subjectCn: request.csrSubjectCn,
   },
   id: request.id,
+  kind: knownKinds.has(request.kind as EnrollmentKind)
+    ? (request.kind as EnrollmentKind)
+    : "SUBORDINATE",
   parentCn: request.parentCn,
+  pinnedKeySha256: request.pinnedKeySha256 || undefined,
   proposedName: request.proposedName,
   rejectionReason: request.rejectionReason || undefined,
   requestedAt: request.requestedAt,
@@ -215,10 +244,15 @@ export const useEnrollments = (): EnrollmentRequest[] => {
 };
 
 let nextId = 9000;
-export const requestEnrollment = (draft: EnrollmentDraft): EnrollmentRequest => {
+
+// Mock-only create: models the SUBORDINATE CSR-provisioning flow the mock
+// fixtures represent. `createEnrollment` (below) dispatches here for
+// `fleetMode() === "mock"`.
+const mockRequestEnrollment = (draft: EnrollmentDraft): EnrollmentRequest => {
   const req: EnrollmentRequest = {
     ...draft,
     id: `enr-${nextId++}`,
+    kind: "SUBORDINATE",
     requestedAt: daysFromNow(0),
     status: "PENDING",
   };
@@ -227,19 +261,18 @@ export const requestEnrollment = (draft: EnrollmentDraft): EnrollmentRequest => 
   return req;
 };
 
+// Back-compat alias for the pre-live-seam mock API (existing tests/pages).
+export const requestEnrollment = mockRequestEnrollment;
+
 const patch = (id: string, next: Partial<EnrollmentRequest>): void => {
   requests = requests.map((r) => (r.id === id ? { ...r, ...next } : r));
   emit();
 };
 
-// live writes: roadmap -- approveEnrollment/rejectEnrollment stay mock-only
-// for this read-only run; they mutate the mock store regardless of
-// fleetMode(), and a live manager write path isn't wired yet.
-//
-// Approve: parent signs (capability-checked), the node joins the fleet. The
-// AWAITING_CERT -> ESTABLISHED interim is modeled by admitting the node already
-// established for the mock happy path.
-export const approveEnrollment = (id: string): void => {
+// Mock-only approve: parent signs (capability-checked), the node joins the
+// fleet. The AWAITING_CERT -> ESTABLISHED interim is modeled by admitting the
+// node already established for the mock happy path.
+const mockApproveEnrollment = (id: string): void => {
   const req = getEnrollment(id);
   if (!req || req.status !== "PENDING") return;
   if (!canApprove(req).ok) return;
@@ -268,7 +301,7 @@ export const approveEnrollment = (id: string): void => {
   });
 };
 
-export const rejectEnrollment = (id: string, reason: string): void => {
+const mockRejectEnrollment = (id: string, reason: string): void => {
   const req = getEnrollment(id);
   if (!req || req.status !== "PENDING") return;
   patch(id, { rejectionReason: reason, status: "REJECTED" });
@@ -277,6 +310,50 @@ export const rejectEnrollment = (id: string, reason: string): void => {
     summary: `Rejected enrollment ${req.proposedName} (${reason})`,
     targetKind: "enrollment",
   });
+};
+
+// Live writes: `mock` mode keeps mutating the in-memory mock store above
+// (unchanged behavior); `live`/`live-auth` call the manager's Connect RPCs
+// and then re-pull ListEnrollments so the queue reflects the manager's
+// resolved state (which may differ from an optimistic local patch, e.g. a
+// LINK approval that fails ApplyConfig). Errors propagate to the caller
+// (the enrollment page surfaces them) rather than being swallowed here.
+export const createEnrollment = async (draft: EnrollmentCreateDraft): Promise<void> => {
+  if (fleetMode() === "mock") {
+    if (draft.kind !== "SUBORDINATE") {
+      // No mock LINK fixture exists; surface it rather than a silent false success.
+      throw new Error("LINK enrollment requires live mode (attestation is not mocked)");
+    }
+    mockRequestEnrollment({
+      address: "",
+      attestation: { nodeId: "", tpm: "" },
+      csr: { keyType: "", subjectCn: "" },
+      parentCn: draft.parentCn,
+      proposedName: draft.childNode,
+      role: "issuing",
+    });
+    return;
+  }
+  await fleetClient().createEnrollment(draft);
+  await refreshLiveEnrollments();
+};
+
+export const approveEnrollment = async (id: string, link?: LinkApprovalMaterial): Promise<void> => {
+  if (fleetMode() === "mock") {
+    mockApproveEnrollment(id);
+    return;
+  }
+  await fleetClient().approveEnrollment({ id, ...(link ?? {}) });
+  await refreshLiveEnrollments();
+};
+
+export const rejectEnrollment = async (id: string, reason: string): Promise<void> => {
+  if (fleetMode() === "mock") {
+    mockRejectEnrollment(id, reason);
+    return;
+  }
+  await fleetClient().rejectEnrollment({ id, reason });
+  await refreshLiveEnrollments();
 };
 
 // Test-only.
