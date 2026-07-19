@@ -28,6 +28,9 @@ export const NodeIssuePage = () => {
   const { name } = useParams<{ name: string }>();
   const node = name ? getNode(name) : undefined;
   const [issued, setIssued] = useState<Cert | null>(null);
+  // Remount key: bumping it drops the form's issued/export state so "Issue
+  // another" starts from a clean form (and a fresh, unexportable key).
+  const [formKey, setFormKey] = useState(0);
 
   if (!node || canIssue(node).length === 0) {
     return <Navigate replace to={`/nodes/${name}`} />;
@@ -40,24 +43,25 @@ export const NodeIssuePage = () => {
         <p className="font-mono text-sm text-muted-foreground">from {node.name}</p>
       </div>
 
+      <IssueForm key={formKey} node={node} onIssued={setIssued} />
+
       {issued ? (
-        <div className="max-w-md space-y-3 rounded-lg border bg-secondary p-4">
-          <p className="font-mono text-sm">
-            Issued <span className="text-success">{issued.subjectCn}</span>
-          </p>
-          <p className="font-mono text-xs text-muted-foreground">serial {issued.serial}</p>
-          <div className="flex gap-2">
-            <Button asChild size="sm" variant="outline">
-              <Link to={`/nodes/${node.name}/certs/${issued.serial}`}>View certificate</Link>
-            </Button>
-            <Button onClick={() => setIssued(null)} size="sm" variant="outline">
-              Issue another
-            </Button>
-          </div>
+        <div className="flex max-w-md gap-2">
+          <Button asChild size="sm" variant="outline">
+            <Link to={`/nodes/${node.name}/certs/${issued.serial}`}>View certificate</Link>
+          </Button>
+          <Button
+            onClick={() => {
+              setIssued(null);
+              setFormKey((k) => k + 1);
+            }}
+            size="sm"
+            variant="outline"
+          >
+            Issue another
+          </Button>
         </div>
-      ) : (
-        <IssueForm node={node} onIssued={setIssued} />
-      )}
+      ) : null}
 
       <Button asChild variant="outline">
         <Link to={`/nodes/${node.name}`}>Back to node</Link>
