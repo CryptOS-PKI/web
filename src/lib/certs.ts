@@ -239,7 +239,7 @@ const CERT_POLL_INTERVAL_MS = 10_000;
 // Errors are swallowed to a console warning: a manager outage should degrade
 // the certificates view to whatever it last had, not throw the page into an
 // error boundary.
-const refreshLiveCerts = async (node?: string): Promise<void> => {
+export const refreshLiveCerts = async (node?: string): Promise<void> => {
   try {
     const response = await fleetClient().listCertificates({ node: node ?? "" });
     liveCerts = response.certificates.map(fromCertificate);

@@ -97,7 +97,7 @@ const NODE_POLL_INTERVAL_MS = 10_000;
 // Errors are swallowed to a console warning: a manager outage should degrade
 // the fleet view to whatever it last had, not throw the page into an error
 // boundary.
-const refreshLiveNodes = async (): Promise<void> => {
+export const refreshLiveNodes = async (): Promise<void> => {
   try {
     const response = await fleetClient().listNodes({});
     liveNodes = response.nodes.map(fromSummary);
