@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it } from "vitest";
 
@@ -36,14 +36,14 @@ const renderAt = (path: string) =>
 describe("NodeIssuePage", () => {
   beforeEach(() => __resetCerts());
 
-  it("issues a leaf cert from an issuing CA", () => {
+  it("issues a leaf cert from an issuing CA", async () => {
     const before = certsFor("acme-issuing-01").length;
     renderAt("/nodes/acme-issuing-01/issue");
     fireEvent.change(screen.getByLabelText(/subject cn/i), {
       target: { value: "new.acme.example" },
     });
     fireEvent.click(screen.getByRole("button", { name: /^issue$/i }));
-    expect(certsFor("acme-issuing-01").length).toBe(before + 1);
+    await waitFor(() => expect(certsFor("acme-issuing-01").length).toBe(before + 1));
     expect(screen.getByText(/issued/i)).toBeInTheDocument();
   });
 

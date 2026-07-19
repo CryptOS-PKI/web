@@ -49,9 +49,9 @@ describe("cert store", () => {
     expect(certsFor("acme-issuing-01").length).toBeGreaterThan(0);
   });
 
-  it("issueCert adds a VALID cert to the issuer", () => {
+  it("issueCert adds a VALID cert to the issuer", async () => {
     const before = certsFor("acme-issuing-01").length;
-    const cert = issueCert("acme-issuing-01", {
+    const cert = await issueCert("acme-issuing-01", {
       kind: "leaf",
       subjectCn: "web.acme.example",
       sans: ["web.acme.example"],
@@ -64,8 +64,8 @@ describe("cert store", () => {
     expect(certsFor("acme-issuing-01").some((c) => c.serial === cert.serial)).toBe(true);
   });
 
-  it("revokeCert flips status and records the reason", () => {
-    const cert = issueCert("acme-issuing-01", {
+  it("revokeCert flips status and records the reason", async () => {
+    const cert = await issueCert("acme-issuing-01", {
       kind: "leaf",
       subjectCn: "api.acme.example",
       sans: [],
@@ -82,8 +82,8 @@ describe("cert store", () => {
 describe("expiry helpers", () => {
   beforeEach(() => __resetCerts());
 
-  it("daysUntilExpiry is measured against the fixed mock clock", () => {
-    const c = issueCert("acme-issuing-01", {
+  it("daysUntilExpiry is measured against the fixed mock clock", async () => {
+    const c = await issueCert("acme-issuing-01", {
       kind: "leaf",
       subjectCn: "x.acme.example",
       validityDays: 90,
@@ -112,8 +112,8 @@ describe("expiry helpers", () => {
 describe("renewCert", () => {
   beforeEach(() => __resetCerts());
 
-  it("issues a fresh cert with the same subject/profile and supersedes the old one", () => {
-    const orig = issueCert("acme-issuing-01", {
+  it("issues a fresh cert with the same subject/profile and supersedes the old one", async () => {
+    const orig = await issueCert("acme-issuing-01", {
       kind: "leaf",
       subjectCn: "renew.acme.example",
       validityDays: 90,
@@ -131,9 +131,9 @@ describe("renewCert", () => {
     expect(oldNow?.reason).toBe("superseded");
   });
 
-  it("returns undefined for a revoked or unknown serial", () => {
+  it("returns undefined for a revoked or unknown serial", async () => {
     expect(renewCert("nope")).toBeUndefined();
-    const c = issueCert("acme-issuing-01", {
+    const c = await issueCert("acme-issuing-01", {
       kind: "leaf",
       subjectCn: "r.acme.example",
       validityDays: 30,

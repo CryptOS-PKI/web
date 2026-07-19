@@ -26,7 +26,7 @@ describe("RevokeDialog", () => {
   beforeEach(() => __resetCerts());
 
   it("revokes with the chosen reason and closes", async () => {
-    const cert = issueCert("acme-issuing-01", {
+    const cert = await issueCert("acme-issuing-01", {
       kind: "leaf",
       subjectCn: "x.acme.example",
       validityDays: 30,

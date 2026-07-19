@@ -49,6 +49,9 @@ export interface Cert {
 }
 
 export interface IssueDraft {
+  // csrDer is the browser-generated PKCS#10 CSR. The live path forwards it to
+  // the manager; the mock path ignores it (it mints a fixture directly).
+  csrDer?: Uint8Array;
   eku?: string[];
   kind: CertKind;
   pathLen?: number;
@@ -284,11 +287,15 @@ export const useAllCerts = (): Cert[] => {
   );
 };
 
-// live writes: issueCert/renewCert stay mock-only for now; revokeCert is the
-// first write wired through to the manager (RevokeCertificate). In `mock` mode
-// every write still mutates the in-memory store regardless of fleetMode().
+// live writes: revokeCert (RevokeCertificate) landed first; issueCert is the
+// second write wired through to the manager (IssueLeaf). In `mock` mode every
+// write still mutates the in-memory store regardless of fleetMode().
 let nextSerial = 10_000;
-export const issueCert = (issuerNodeName: string, draft: IssueDraft): Cert => {
+
+// mockIssue mints a fixture cert directly, unchanged from the pre-live
+// behavior. renewCert and every mock-mode caller depend on this synchronous
+// shape, so it stays synchronous behind the fleetMode() check.
+const mockIssue = (issuerNodeName: string, draft: IssueDraft): Cert => {
   const cert: Cert = {
     eku: draft.eku ?? [],
     issuedAt: daysFromNow(0),
@@ -313,6 +320,38 @@ export const issueCert = (issuerNodeName: string, draft: IssueDraft): Cert => {
     targetPath: `/nodes/${issuerNodeName}/certs/${cert.serial}`,
   });
   return cert;
+};
+
+// issueCert mints a leaf on issuerNodeName. In `mock` mode it adds a fixture
+// cert directly. In `live`/`live-auth` mode it forwards the browser-generated
+// CSR to the manager's IssueLeaf, then refetches the certificate set
+// unfiltered (a node-scoped refetch would transiently collapse the all-nodes
+// view) and returns the newly issued cert matching this subject CN.
+export const issueCert = async (issuerNodeName: string, draft: IssueDraft): Promise<Cert> => {
+  if (fleetMode() === "mock") {
+    return mockIssue(issuerNodeName, draft);
+  }
+
+  if (!draft.csrDer || draft.csrDer.length === 0) {
+    throw new Error("issueCert: a CSR is required to issue live");
+  }
+
+  await fleetClient().issueLeaf({
+    csrDer: draft.csrDer,
+    nodeName: issuerNodeName,
+    profileName: draft.profile ?? "",
+  });
+  // Refetch unfiltered: refreshLiveCerts replaces the whole cache, so a
+  // node-scoped refetch would transiently collapse the all-nodes view.
+  await refreshLiveCerts();
+
+  const match = liveCerts.find(
+    (c) => c.issuerNodeName === issuerNodeName && c.subjectCn === draft.subjectCn,
+  );
+  if (!match) {
+    throw new Error("issueCert: issued certificate did not appear in the fleet");
+  }
+  return match;
 };
 
 // RFC 5280 CRLReason codes for the reasons the revoke dialog offers. The

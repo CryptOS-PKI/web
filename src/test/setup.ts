@@ -16,6 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+import "reflect-metadata";
 import "@testing-library/jest-dom/vitest";
 
 // jsdom has no matchMedia. Stub it as reduce=true so the topology's staged

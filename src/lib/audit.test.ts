@@ -55,8 +55,8 @@ describe("audit capture from mutators", () => {
     __resetAudit();
   });
 
-  it("records issue / revoke / renew", () => {
-    const c = issueCert("acme-issuing-01", {
+  it("records issue / revoke / renew", async () => {
+    const c = await issueCert("acme-issuing-01", {
       kind: "leaf",
       subjectCn: "a.acme.example",
       validityDays: 90,
@@ -64,7 +64,7 @@ describe("audit capture from mutators", () => {
     expect(auditList()[0].kind).toBe("issued");
     renewCert(c.serial);
     expect(auditList()[0].kind).toBe("renewed");
-    const c2 = issueCert("acme-issuing-01", {
+    const c2 = await issueCert("acme-issuing-01", {
       kind: "leaf",
       subjectCn: "b.acme.example",
       validityDays: 90,
