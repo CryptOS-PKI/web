@@ -18,18 +18,37 @@ limitations under the License.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// Capture every RevokeCertificate call so the live path can be asserted without
-// a real fetch. listCertificates resolves empty so the post-revoke refresh is a
-// no-op rather than a hanging promise.
+// Capture every RevokeCertificate/IssueLeaf call so the live paths can be
+// asserted without a real fetch. listCertificates resolves with the fixture
+// below so the post-write refresh finds the newly issued cert instead of
+// hanging.
 const revokeCertificate = vi.fn(() => Promise.resolve({}));
+const issueLeaf = vi.fn(() => Promise.resolve({ certDer: new Uint8Array() }));
+const listCertificatesResult = {
+  certificates: [
+    {
+      issuerNode: "acme-issuing-01",
+      kind: "leaf",
+      notAfter: "2027-01-01T00:00:00Z",
+      notBefore: "2026-01-01T00:00:00Z",
+      profile: "TLS Server",
+      reason: "",
+      revokedAt: "",
+      serial: "AA11",
+      status: "VALID",
+      subjectCn: "web.acme.example",
+    },
+  ],
+};
 vi.mock("@/lib/fleet/client", () => ({
   fleetClient: () => ({
-    listCertificates: () => Promise.resolve({ certificates: [] }),
+    issueLeaf,
+    listCertificates: () => Promise.resolve(listCertificatesResult),
     revokeCertificate,
   }),
 }));
 
-import { revokeCert } from "@/lib/certs";
+import { issueCert, revokeCert } from "@/lib/certs";
 
 describe("revokeCert live path", () => {
   beforeEach(() => {
@@ -56,5 +75,49 @@ describe("revokeCert live path", () => {
     expect(revokeCertificate).toHaveBeenCalledWith(
       expect.objectContaining({ serialHex: "0C0D", reasonCode: 5 }),
     );
+  });
+});
+
+describe("issueCert live path", () => {
+  beforeEach(() => {
+    issueLeaf.mockClear();
+    vi.stubEnv("VITE_FLEET_MODE", "live");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("forwards the CSR + profile to IssueLeaf and returns the refetched cert", async () => {
+    const cert = await issueCert("acme-issuing-01", {
+      csrDer: new Uint8Array([1, 2, 3]),
+      kind: "leaf",
+      profile: "TLS Server",
+      sans: ["web.acme.example"],
+      subjectCn: "web.acme.example",
+      validityDays: 90,
+    });
+
+    expect(issueLeaf).toHaveBeenCalledTimes(1);
+    expect(issueLeaf).toHaveBeenCalledWith(
+      expect.objectContaining({
+        csrDer: new Uint8Array([1, 2, 3]),
+        nodeName: "acme-issuing-01",
+        profileName: "TLS Server",
+      }),
+    );
+    expect(cert.serial).toBe("AA11");
+    expect(cert.subjectCn).toBe("web.acme.example");
+  });
+
+  it("rejects a live issuance with no CSR", async () => {
+    await expect(
+      issueCert("acme-issuing-01", {
+        kind: "leaf",
+        subjectCn: "web.acme.example",
+        validityDays: 90,
+      }),
+    ).rejects.toThrow();
+    expect(issueLeaf).not.toHaveBeenCalled();
   });
 });

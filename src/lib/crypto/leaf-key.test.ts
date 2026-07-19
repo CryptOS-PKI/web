@@ -26,6 +26,15 @@ import {
   toPemEncryptedKey,
 } from "@/lib/crypto/leaf-key";
 
+// toArrayBuffer copies the CSR bytes into a plain ArrayBuffer so the peculiar
+// parser's AsnEncodedType typing is satisfied (Node types a Uint8Array's
+// buffer as ArrayBufferLike, which the overload rejects).
+const toArrayBuffer = (view: Uint8Array): ArrayBuffer => {
+  const copy = new ArrayBuffer(view.byteLength);
+  new Uint8Array(copy).set(view);
+  return copy;
+};
+
 describe("generateLeafKeyAndCSR", () => {
   it("returns a CSR that parses back with the given CN and an extractable key", async () => {
     const { csrDer, privateKey } = await generateLeafKeyAndCSR({
@@ -37,7 +46,7 @@ describe("generateLeafKeyAndCSR", () => {
     expect(privateKey).toBeInstanceOf(CryptoKey);
     expect(privateKey.extractable).toBe(true);
 
-    const csr = new Pkcs10CertificateRequest(csrDer);
+    const csr = new Pkcs10CertificateRequest(toArrayBuffer(csrDer));
     expect(csr.subject).toContain("svc.acme.example");
     await expect(csr.verify()).resolves.toBe(true);
   });
@@ -47,7 +56,7 @@ describe("generateLeafKeyAndCSR", () => {
       sans: ["a.acme.example", "b.acme.example"],
       subjectCn: "a.acme.example",
     });
-    const csr = new Pkcs10CertificateRequest(csrDer);
+    const csr = new Pkcs10CertificateRequest(toArrayBuffer(csrDer));
     const san = csr.getExtension("2.5.29.17");
     expect(san).not.toBeNull();
   });

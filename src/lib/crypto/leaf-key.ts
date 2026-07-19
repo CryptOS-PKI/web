@@ -17,7 +17,11 @@ limitations under the License.
 */
 
 import "reflect-metadata";
-import { Pkcs10CertificateRequestGenerator, SubjectAlternativeNameExtension } from "@peculiar/x509";
+import {
+  type JsonGeneralName,
+  Pkcs10CertificateRequestGenerator,
+  SubjectAlternativeNameExtension,
+} from "@peculiar/x509";
 
 // The leaf keypair is ECDSA P-256, generated in the browser with WebCrypto.
 // The private key is extractable so it can be exported -- but only ever as a
@@ -52,10 +56,8 @@ export const generateLeafKeyAndCSR = async (params: {
   const keys = await crypto.subtle.generateKey(LEAF_KEY_ALGORITHM, true, ["sign", "verify"]);
 
   const sans = params.sans.map((s) => s.trim()).filter(Boolean);
-  const extensions =
-    sans.length > 0
-      ? [new SubjectAlternativeNameExtension(sans.map((value) => ({ type: "dns", value })))]
-      : [];
+  const sanNames: JsonGeneralName[] = sans.map((value) => ({ type: "dns", value }));
+  const extensions = sanNames.length > 0 ? [new SubjectAlternativeNameExtension(sanNames)] : [];
 
   const csr = await Pkcs10CertificateRequestGenerator.create({
     extensions,
