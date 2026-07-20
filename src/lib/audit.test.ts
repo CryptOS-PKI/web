@@ -73,7 +73,7 @@ describe("audit capture from mutators", () => {
     expect(auditList()[0].kind).toBe("revoked");
   });
 
-  it("records enrollment approve/reject, protocol toggle, profile create", () => {
+  it("records enrollment approve/reject, protocol toggle, profile create", async () => {
     const req = requestEnrollment({
       address: "10.20.1.99:8443",
       attestation: { nodeId: "nz", tpm: "TPM · sealed" },
@@ -86,13 +86,15 @@ describe("audit capture from mutators", () => {
     expect(auditList()[0].kind).toBe("enroll-approved");
     setEnabled("scep", true);
     expect(auditList()[0].kind).toBe("protocol-toggled");
-    createProfile({
+    await createProfile({
       extKeyUsage: [],
+      extraExtensions: [],
       isCA: false,
       keyAlg: "ECDSA-P384",
       keyUsage: [],
       name: "Aud Test",
-      sans: [],
+      sans: { dns: [], email: [], ip: [], uri: [] },
+      subject: { commonName: "", country: "", organization: "" },
       validityDays: 365,
     });
     expect(auditList()[0].kind).toBe("profile-created");

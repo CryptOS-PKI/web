@@ -39,7 +39,9 @@ export type AuditKind =
   | "enroll-approved"
   | "enroll-rejected"
   | "issued"
+  | "profile-applied"
   | "profile-created"
+  | "profile-deleted"
   | "profile-updated"
   | "protocol-toggled"
   | "rekeyed"
@@ -160,7 +162,9 @@ const knownAuditKinds = new Set<AuditKind>([
   "enroll-approved",
   "enroll-rejected",
   "issued",
+  "profile-applied",
   "profile-created",
+  "profile-deleted",
   "profile-updated",
   "protocol-toggled",
   "rekeyed",
