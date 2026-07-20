@@ -16,12 +16,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { __resetProfiles, getProfile } from "@/lib/profiles";
 import { ProfileDetailPage } from "@/pages/profile-detail";
+
+// mock mode keeps the in-memory catalog; the auth gate is mocked to an admin so
+// the edit/delete controls render without an AuthProvider.
+vi.mock("@/context/auth", () => ({
+  useAuth: () => ({
+    operator: { commonName: "admin@acme.example", level: "admin", serial: "AA" },
+    status: "authenticated",
+  }),
+}));
 
 const renderAt = (path: string) =>
   render(
@@ -36,12 +45,20 @@ const renderAt = (path: string) =>
 describe("ProfileDetailPage", () => {
   beforeEach(() => __resetProfiles());
 
-  it("edits an existing profile's validity", () => {
+  it("edits an existing profile's validity", async () => {
     renderAt("/profiles/Code Signing");
     const validity = screen.getByLabelText(/validity/i);
     fireEvent.change(validity, { target: { value: "730" } });
     fireEvent.click(screen.getByRole("button", { name: /save/i }));
-    expect(getProfile("Code Signing")?.validityDays).toBe(730);
+    await waitFor(() => expect(getProfile("Code Signing")?.validityDays).toBe(730));
+  });
+
+  it("deletes a profile from the danger zone", async () => {
+    renderAt("/profiles/Code Signing");
+    fireEvent.click(screen.getByRole("button", { name: /delete profile/i }));
+    fireEvent.click(screen.getByRole("button", { name: /confirm delete/i }));
+    await waitFor(() => expect(getProfile("Code Signing")).toBeUndefined());
+    expect(screen.getByText("profiles list")).toBeInTheDocument();
   });
 
   it("redirects an unknown profile to the list", () => {
