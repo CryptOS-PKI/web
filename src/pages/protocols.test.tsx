@@ -16,12 +16,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { __resetAdapters, getAdapter } from "@/lib/adapters";
 import { ProtocolsPage } from "@/pages/protocols";
+
+// mock mode keeps the in-memory catalog; the auth gate is mocked to an admin so
+// the toggle controls render without an AuthProvider.
+vi.mock("@/context/auth", () => ({
+  useAuth: () => ({
+    operator: { commonName: "admin@acme.example", level: "admin", serial: "AA" },
+    status: "authenticated",
+  }),
+}));
 
 describe("ProtocolsPage", () => {
   beforeEach(() => __resetAdapters());
@@ -35,7 +44,16 @@ describe("ProtocolsPage", () => {
     expect(screen.getByRole("link", { name: /ACME/ })).toHaveAttribute("href", "/protocols/acme");
   });
 
-  it("toggles an adapter from the row", () => {
+  it("shows the honest engine-pending note", () => {
+    render(
+      <MemoryRouter>
+        <ProtocolsPage />
+      </MemoryRouter>,
+    );
+    expect(screen.getByRole("note")).toHaveTextContent(/does not yet serve enrollment requests/i);
+  });
+
+  it("toggles an adapter from the row", async () => {
     render(
       <MemoryRouter>
         <ProtocolsPage />
@@ -43,6 +61,6 @@ describe("ProtocolsPage", () => {
     );
     expect(getAdapter("scep")?.enabled).toBe(false);
     fireEvent.click(screen.getByRole("button", { name: /enable scep/i }));
-    expect(getAdapter("scep")?.enabled).toBe(true);
+    await waitFor(() => expect(getAdapter("scep")?.enabled).toBe(true));
   });
 });
