@@ -18,12 +18,55 @@ limitations under the License.
 
 import type { ColumnDef } from "@tanstack/react-table";
 
+import { useState } from "react";
 import { Link } from "react-router-dom";
 
 import { DataTable } from "@/components/data-table/data-table";
+import { useAuth } from "@/context/auth";
 import { type EnrollmentAdapter, setEnabled, useAdapters } from "@/lib/adapters";
 
-const protocolColumns: ColumnDef<EnrollmentAdapter, unknown>[] = [
+// ToggleCell owns the per-row pending/error state for the enable/disable write.
+// The control is admin-only; a non-admin sees no button. Errors (including a
+// server-side permission denial) render inline beside the row, never a popup.
+const ToggleCell = ({ adapter, isAdmin }: { adapter: EnrollmentAdapter; isAdmin: boolean }) => {
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState("");
+
+  if (!isAdmin) {
+    return <span className="font-mono text-[11px] text-muted-foreground">admin only</span>;
+  }
+
+  const toggle = async () => {
+    setError("");
+    setPending(true);
+    try {
+      const res = await setEnabled(adapter.kind, !adapter.enabled);
+      if (!res.ok) setError(res.reason ?? "Could not update the adapter.");
+    } finally {
+      setPending(false);
+    }
+  };
+
+  return (
+    <div className="space-y-1">
+      <button
+        className="rounded-md border px-2.5 py-1 text-xs hover:bg-secondary disabled:opacity-50"
+        disabled={pending}
+        onClick={() => void toggle()}
+        type="button"
+      >
+        {pending ? "Saving…" : `${adapter.enabled ? "Disable" : "Enable"} ${adapter.kind}`}
+      </button>
+      {error ? (
+        <p className="font-mono text-[11px] text-destructive" role="alert">
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
+};
+
+const buildColumns = (isAdmin: boolean): ColumnDef<EnrollmentAdapter, unknown>[] => [
   {
     accessorKey: "name",
     cell: ({ row }) => (
@@ -46,15 +89,7 @@ const protocolColumns: ColumnDef<EnrollmentAdapter, unknown>[] = [
     id: "enabled",
   },
   {
-    cell: ({ row }) => (
-      <button
-        className="rounded-md border px-2.5 py-1 text-xs hover:bg-secondary"
-        onClick={() => setEnabled(row.original.kind, !row.original.enabled)}
-        type="button"
-      >
-        {row.original.enabled ? `Disable ${row.original.kind}` : `Enable ${row.original.kind}`}
-      </button>
-    ),
+    cell: ({ row }) => <ToggleCell adapter={row.original} isAdmin={isAdmin} />,
     enableSorting: false,
     header: "",
     id: "actions",
@@ -63,6 +98,8 @@ const protocolColumns: ColumnDef<EnrollmentAdapter, unknown>[] = [
 
 export const ProtocolsPage = () => {
   const adapters = useAdapters();
+  const { operator } = useAuth();
+  const isAdmin = operator?.level === "admin";
 
   return (
     <section className="space-y-5">
@@ -73,8 +110,16 @@ export const ProtocolsPage = () => {
         </p>
       </div>
 
+      <p
+        className="max-w-3xl rounded-md border border-warning/40 bg-warning/5 p-3 text-sm text-muted-foreground"
+        role="note"
+      >
+        Enabling an adapter records intent only. The ACME, EST, SCEP, and Windows autoenrollment
+        services ship in a later release; an enabled adapter does not yet serve enrollment requests.
+      </p>
+
       <DataTable
-        columns={protocolColumns}
+        columns={buildColumns(isAdmin)}
         data={adapters}
         facets={[{ columnId: "enabled", title: "Enabled" }]}
         initialSort={[{ desc: false, id: "name" }]}

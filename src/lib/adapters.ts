@@ -155,19 +155,49 @@ const patch = (kind: AdapterKind, next: Partial<EnrollmentAdapter>): void => {
   emit();
 };
 
-// live writes: roadmap -- setEnabled/updateAdapter stay mock-only for this
-// read-only run; they mutate the mock store regardless of fleetMode(), and a
-// live manager write path isn't wired yet.
-export const setEnabled = (kind: AdapterKind, on: boolean): void => {
-  patch(kind, { enabled: on });
-  const a = getAdapter(kind);
-  recordAudit({
-    kind: "protocol-toggled",
-    summary: `${on ? "Enabled" : "Disabled"} ${a?.name ?? kind}`,
-    targetKind: "protocol",
-    targetPath: `/protocols/${kind}`,
-  });
+// AdapterWriteResult reports whether a toggle succeeded, with an inline reason
+// on failure (surfaced beside the control, never a native popup).
+export interface AdapterWriteResult {
+  ok: boolean;
+  reason?: string;
+}
+
+// setEnabled records whether an adapter is enabled. In mock mode it flips the
+// in-memory catalog. In live mode it resolves the adapter's name from the
+// loaded live catalog (the web addresses adapters by kind, but the RPC keys by
+// name), calls SetAdapterEnabled with that name, and refetches so the list
+// reflects the committed state. If the adapter for the kind is not loaded it
+// returns an inline error rather than sending an empty name. The manager
+// enforces the admin gate; a denied caller surfaces here as an inline error.
+export const setEnabled = async (kind: AdapterKind, on: boolean): Promise<AdapterWriteResult> => {
+  if (fleetMode() === "mock") {
+    patch(kind, { enabled: on });
+    const a = getAdapter(kind);
+    recordAudit({
+      kind: "protocol-toggled",
+      summary: `${on ? "Enabled" : "Disabled"} ${a?.name ?? kind}`,
+      targetKind: "protocol",
+      targetPath: `/protocols/${kind}`,
+    });
+    return { ok: true };
+  }
+
+  // The kind -> name lookup needs the live catalog; load it if empty.
+  if (liveAdapters.length === 0) await refreshLiveAdapters();
+  const target = liveAdapters.find((a) => a.kind === kind);
+  if (!target) {
+    return { ok: false, reason: `Adapter "${kind}" is not loaded; cannot toggle.` };
+  }
+
+  try {
+    await fleetClient().setAdapterEnabled({ enabled: on, name: target.name });
+    await refreshLiveAdapters();
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, reason: error instanceof Error ? error.message : "Toggle failed." };
+  }
 };
+
 export const updateAdapter = (kind: AdapterKind, next: Partial<EnrollmentAdapter>): void =>
   patch(kind, next);
 
