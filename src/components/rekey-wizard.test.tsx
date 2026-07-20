@@ -16,20 +16,75 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { RekeyWizard } from "@/components/rekey-wizard";
-import { getNode } from "@/lib/nodes";
+import { mockNodes, type Node } from "@/lib/mock";
 
-describe("RekeyWizard", () => {
-  it("advances through the steps to completion", () => {
-    render(<RekeyWizard node={getNode("acme-issuing-01")!} />);
-    // Four steps: click Next until Done appears.
+const issuingNode = (): Node => mockNodes.find((n) => n.name === "acme-issuing-01")!;
+const rootNode = (): Node => mockNodes.find((n) => n.name === "acme-root-01")!;
+
+const rekeyNode = vi.fn();
+let mode: "live" | "mock" = "mock";
+
+vi.mock("@/lib/rekey", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/rekey")>("@/lib/rekey");
+  return { ...actual, rekeyNode: (...args: [string, string]) => rekeyNode(...args) };
+});
+vi.mock("@/lib/fleet/mode", () => ({ fleetMode: () => mode }));
+
+describe("RekeyWizard (mock)", () => {
+  beforeEach(() => {
+    mode = "mock";
+    rekeyNode.mockReset();
+  });
+
+  it("advances through the demo steps to completion without any RPC", () => {
+    render(<RekeyWizard node={issuingNode()} />);
     for (let i = 0; i < 4; i += 1) {
       const next = screen.queryByRole("button", { name: /next|sign|install|generate/i });
       if (next) fireEvent.click(next);
     }
     expect(screen.getByText(/re-key complete/i)).toBeInTheDocument();
+    expect(rekeyNode).not.toHaveBeenCalled();
+  });
+});
+
+describe("RekeyWizard (live)", () => {
+  beforeEach(() => {
+    mode = "live";
+    rekeyNode.mockReset().mockResolvedValue({
+      chainLen: 2,
+      issuerCn: "ACME Intermediate CA",
+      subjectCn: "ACME Issuing CA",
+    });
+  });
+
+  it("re-keys through a single RPC and renders the new identity on success", async () => {
+    render(<RekeyWizard node={issuingNode()} />);
+    fireEvent.click(screen.getByRole("button", { name: /re-key/i }));
+
+    await waitFor(() =>
+      expect(rekeyNode).toHaveBeenCalledWith("acme-issuing-01", expect.any(String)),
+    );
+    expect(await screen.findByText(/ACME Issuing CA/)).toBeInTheDocument();
+    expect(screen.getByText(/ACME Intermediate CA/)).toBeInTheDocument();
+  });
+
+  it("surfaces an RPC error inline and does not advance", async () => {
+    rekeyNode.mockRejectedValue(new Error("parent not in fleet"));
+    render(<RekeyWizard node={issuingNode()} />);
+    fireEvent.click(screen.getByRole("button", { name: /re-key/i }));
+
+    expect(await screen.findByText(/parent not in fleet/i)).toBeInTheDocument();
+    expect(screen.queryByText(/re-key complete/i)).not.toBeInTheDocument();
+  });
+
+  it("does not offer re-key for a root CA and makes no RPC", () => {
+    render(<RekeyWizard node={rootNode()} />);
+    expect(screen.getByText(/only for subordinate CAs/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /re-key/i })).not.toBeInTheDocument();
+    expect(rekeyNode).not.toHaveBeenCalled();
   });
 });
