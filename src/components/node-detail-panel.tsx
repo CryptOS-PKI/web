@@ -19,6 +19,7 @@ limitations under the License.
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
+import { DecommissionDialog } from "@/components/decommission-dialog";
 import { EscrowExportDialog } from "@/components/escrow-export-dialog";
 import { EscrowImportDialog } from "@/components/escrow-import-dialog";
 import { IdentityBadge } from "@/components/identity-badge";
@@ -69,7 +70,7 @@ const DASH = "—";
 
 export const NodeDetailPanel = ({ node }: { node: Node }) => {
   const isAdmin = useOptionalAuth()?.operator?.level === "admin";
-  const [dialog, setDialog] = useState<"export" | "import" | null>(null);
+  const [dialog, setDialog] = useState<"decommission" | "export" | "import" | null>(null);
 
   return (
     <div className="p-4">
@@ -135,6 +136,11 @@ export const NodeDetailPanel = ({ node }: { node: Node }) => {
             {"Import key\u2026"}
           </Button>
         ) : null}
+        {isAdmin ? (
+          <Button onClick={() => setDialog("decommission")} size="sm" variant="destructive">
+            {"Decommission\u2026"}
+          </Button>
+        ) : null}
       </div>
 
       {dialog === "export" ? (
@@ -142,6 +148,14 @@ export const NodeDetailPanel = ({ node }: { node: Node }) => {
       ) : null}
       {dialog === "import" ? (
         <EscrowImportDialog nodeName={node.name} onClose={() => setDialog(null)} />
+      ) : null}
+      {dialog === "decommission" ? (
+        <DecommissionDialog
+          nodeName={node.name}
+          onClose={() => setDialog(null)}
+          onDone={() => {}}
+          rootCaCn={node.cn}
+        />
       ) : null}
     </div>
   );

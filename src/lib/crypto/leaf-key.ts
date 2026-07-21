@@ -35,14 +35,14 @@ export const MIN_PASSPHRASE_LENGTH = 18;
 
 // PBES2 with PBKDF2 (HMAC-SHA-256) key derivation and AES-256-CBC encryption,
 // the RFC 8018 object identifiers for the encrypted-PKCS#8 envelope.
-const OID_PBES2 = "1.2.840.113549.1.5.13";
-const OID_PBKDF2 = "1.2.840.113549.1.5.12";
-const OID_HMAC_SHA256 = "1.2.840.113549.2.9";
-const OID_AES_256_CBC = "2.16.840.1.101.3.4.1.42";
+export const OID_PBES2 = "1.2.840.113549.1.5.13";
+export const OID_PBKDF2 = "1.2.840.113549.1.5.12";
+export const OID_HMAC_SHA256 = "1.2.840.113549.2.9";
+export const OID_AES_256_CBC = "2.16.840.1.101.3.4.1.42";
 
-const PBKDF2_ITERATIONS = 210_000;
-const SALT_BYTES = 16;
-const IV_BYTES = 16;
+export const PBKDF2_ITERATIONS = 210_000;
+export const SALT_BYTES = 16;
+export const IV_BYTES = 16;
 
 // generateLeafKeyAndCSR mints an extractable ECDSA P-256 keypair in the
 // browser and builds a PKCS#10 CSR carrying the subject CN and, when SANs are
@@ -134,7 +134,7 @@ export const toPemEncryptedKey = (der: Uint8Array): string => {
 // envelope. Only the shapes this module emits are supported; each helper
 // returns a fully-tagged, length-prefixed DER element.
 
-const derLength = (len: number): Uint8Array => {
+export const derLength = (len: number): Uint8Array => {
   if (len < 0x80) return new Uint8Array([len]);
   const bytes: number[] = [];
   let n = len;
@@ -145,14 +145,15 @@ const derLength = (len: number): Uint8Array => {
   return new Uint8Array([0x80 | bytes.length, ...bytes]);
 };
 
-const derElement = (tag: number, content: Uint8Array): Uint8Array =>
+export const derElement = (tag: number, content: Uint8Array): Uint8Array =>
   concat(new Uint8Array([tag]), derLength(content.length), content);
 
-const derSequence = (...parts: Uint8Array[]): Uint8Array => derElement(0x30, concat(...parts));
-const derOctetString = (content: Uint8Array): Uint8Array => derElement(0x04, content);
-const derNull = (): Uint8Array => new Uint8Array([0x05, 0x00]);
+export const derSequence = (...parts: Uint8Array[]): Uint8Array =>
+  derElement(0x30, concat(...parts));
+export const derOctetString = (content: Uint8Array): Uint8Array => derElement(0x04, content);
+export const derNull = (): Uint8Array => new Uint8Array([0x05, 0x00]);
 
-const derInteger = (value: number): Uint8Array => {
+export const derInteger = (value: number): Uint8Array => {
   const bytes: number[] = [];
   let n = value;
   do {
@@ -164,7 +165,7 @@ const derInteger = (value: number): Uint8Array => {
   return derElement(0x02, new Uint8Array(bytes));
 };
 
-const derOid = (oid: string): Uint8Array => {
+export const derOid = (oid: string): Uint8Array => {
   const parts = oid.split(".").map(Number);
   const body: number[] = [40 * parts[0] + parts[1]];
   for (const part of parts.slice(2)) {
@@ -180,7 +181,7 @@ const derOid = (oid: string): Uint8Array => {
 };
 
 // EncryptedPrivateKeyInfo ::= SEQUENCE { encryptionAlgorithm, encryptedData }
-const encodeEncryptedPrivateKeyInfo = (
+export const encodeEncryptedPrivateKeyInfo = (
   salt: Uint8Array,
   iterations: number,
   iv: Uint8Array,
@@ -204,7 +205,7 @@ const encodeEncryptedPrivateKeyInfo = (
   return derSequence(encryptionAlgorithm, derOctetString(ciphertext));
 };
 
-const concat = (...parts: Uint8Array[]): Uint8Array => {
+export const concat = (...parts: Uint8Array[]): Uint8Array => {
   const total = parts.reduce((sum, p) => sum + p.length, 0);
   const out = new Uint8Array(total);
   let offset = 0;
@@ -215,7 +216,7 @@ const concat = (...parts: Uint8Array[]): Uint8Array => {
   return out;
 };
 
-const base64 = (bytes: Uint8Array): string => {
+export const base64 = (bytes: Uint8Array): string => {
   let s = "";
   for (const b of bytes) s += String.fromCharCode(b);
   return btoa(s);

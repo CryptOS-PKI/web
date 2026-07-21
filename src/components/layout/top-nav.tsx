@@ -24,11 +24,13 @@ const items: { end?: boolean; label: string; to: string }[] = [
   { end: true, label: "Dashboard", to: "/" },
   { label: "Fleet", to: "/fleet" },
   { label: "Nodes", to: "/nodes" },
+  { label: "Adopt", to: "/adopt" },
   { label: "Certificates", to: "/certificates" },
   { label: "Enrollment", to: "/enrollment" },
   { label: "Profiles", to: "/profiles" },
   { label: "Protocols", to: "/protocols" },
   { label: "Root", to: "/root" },
+  { label: "Operators", to: "/operators" },
   { label: "Audit", to: "/audit" },
 ];
 
