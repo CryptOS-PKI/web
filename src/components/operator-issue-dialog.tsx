@@ -64,6 +64,7 @@ export const OperatorIssueDialog = ({
   const [commonName, setCommonName] = useState("");
   const [level, setLevel] = useState<OperatorLevel>("operator");
   const [passphrase, setPassphrase] = useState("");
+  const [reveal, setReveal] = useState(false);
   const [confirmText, setConfirmText] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<null | string>(null);
@@ -128,8 +129,8 @@ export const OperatorIssueDialog = ({
             >
               <p className="text-xs text-muted-foreground">
                 The keypair is generated in this browser. The signed credential downloads as a
-                passphrase-protected PKCS#12. Store the passphrase safely: it is not recoverable and
-                is never shown again.
+                passphrase-protected PKCS#12. Save the passphrase before issuing — it is required to
+                open the PKCS#12 and cannot be recovered afterward.
               </p>
             </div>
 
@@ -163,18 +164,46 @@ export const OperatorIssueDialog = ({
                 autoComplete="new-password"
                 className={field}
                 onChange={(e) => setPassphrase(e.target.value)}
-                type="password"
+                type={reveal ? "text" : "password"}
                 value={passphrase}
               />
             </label>
-            <Button
-              onClick={() => setPassphrase(generateStrongPassphrase())}
-              size="sm"
-              type="button"
-              variant="outline"
-            >
-              Generate strong passphrase
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => {
+                  setPassphrase(generateStrongPassphrase());
+                  setReveal(true);
+                }}
+                size="sm"
+                type="button"
+                variant="outline"
+              >
+                Generate strong passphrase
+              </Button>
+              <Button
+                onClick={() => setReveal((r) => !r)}
+                size="sm"
+                type="button"
+                variant="outline"
+              >
+                {reveal ? "Hide" : "Show"}
+              </Button>
+              <Button
+                disabled={passphrase.length === 0}
+                onClick={() => void navigator.clipboard?.writeText(passphrase)}
+                size="sm"
+                type="button"
+                variant="outline"
+              >
+                Copy
+              </Button>
+            </div>
+            {passphrase.length > 0 ? (
+              <p className="font-mono text-xs text-muted-foreground">
+                Save this passphrase now — it is required to open the PKCS#12 and is not
+                recoverable.
+              </p>
+            ) : null}
             {passphrase.length > 0 && !passphraseLongEnough ? (
               <p className="font-mono text-xs text-destructive" role="alert">
                 Passphrase must be at least {MIN_PASSPHRASE_LENGTH} characters.
