@@ -52,11 +52,12 @@ const phaseTone = (active: boolean, passed: boolean, error: boolean): string => 
   return "text-muted-foreground";
 };
 
-// phaseGlyph picks the leading marker for one phase row.
+// phaseGlyph picks the leading marker for one phase row. Plain ASCII markers
+// keep the source free of glyphs the hygiene scanner treats as emoji.
 const phaseGlyph = (active: boolean, passed: boolean): string => {
-  if (passed) return "✓";
-  if (active) return "→";
-  return "·";
+  if (passed) return "[done]";
+  if (active) return "[...]";
+  return "[ ]";
 };
 
 const PhaseRail = ({ current, error }: { current: null | string; error: boolean }) => {
