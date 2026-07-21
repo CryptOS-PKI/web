@@ -100,3 +100,9 @@ export const useAuth = (): AuthState => {
   }
   return context;
 };
+
+// useOptionalAuth reads the auth state without requiring a provider, returning
+// null when there is none. Display components that embed in many contexts (the
+// fleet list, the topology explorer, a standalone node view) use this to gate
+// an admin-only action without forcing every render site to mount a provider.
+export const useOptionalAuth = (): AuthState | null => useContext(AuthContext) ?? null;
