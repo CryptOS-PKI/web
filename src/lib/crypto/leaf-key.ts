@@ -148,7 +148,8 @@ export const derLength = (len: number): Uint8Array => {
 export const derElement = (tag: number, content: Uint8Array): Uint8Array =>
   concat(new Uint8Array([tag]), derLength(content.length), content);
 
-export const derSequence = (...parts: Uint8Array[]): Uint8Array => derElement(0x30, concat(...parts));
+export const derSequence = (...parts: Uint8Array[]): Uint8Array =>
+  derElement(0x30, concat(...parts));
 export const derOctetString = (content: Uint8Array): Uint8Array => derElement(0x04, content);
 export const derNull = (): Uint8Array => new Uint8Array([0x05, 0x00]);
 

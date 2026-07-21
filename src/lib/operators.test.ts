@@ -42,7 +42,11 @@ describe("operators (mock mode)", () => {
 
   it("issues a mock credential returning cert bytes and a serial without a live call", async () => {
     vi.spyOn(modeMod, "fleetMode").mockReturnValue("mock");
-    const result = await issueOperatorCredential("op@acme.example", "operator", new Uint8Array([1]));
+    const result = await issueOperatorCredential(
+      "op@acme.example",
+      "operator",
+      new Uint8Array([1]),
+    );
     expect(result.serialHex).toMatch(/^[0-9a-f:]+$/i);
     expect(result.certDer.length).toBeGreaterThan(0);
   });
@@ -54,9 +58,9 @@ describe("operators (mock mode)", () => {
 
   it("rejects an unknown level before any call", async () => {
     vi.spyOn(modeMod, "fleetMode").mockReturnValue("mock");
-    await expect(
-      issueOperatorCredential("op", "superuser", new Uint8Array([1])),
-    ).rejects.toThrow(/level/i);
+    await expect(issueOperatorCredential("op", "superuser", new Uint8Array([1]))).rejects.toThrow(
+      /level/i,
+    );
   });
 
   it("rejects an empty CSR before any call", async () => {

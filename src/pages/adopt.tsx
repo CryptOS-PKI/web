@@ -22,7 +22,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/auth";
 import { MachineConfigSchema } from "@/gen/fleet/cryptos/v1/config_pb";
-import { adoptNode, type AdoptionPreview, type AdoptPhase, previewAdoption } from "@/lib/adopt";
+import { type AdoptionPreview, adoptNode, type AdoptPhase, previewAdoption } from "@/lib/adopt";
 
 const field = "w-full rounded-md border bg-card px-3 py-2 font-mono text-sm";
 const label = "font-mono text-[11px] uppercase tracking-wider text-muted-foreground";
@@ -43,6 +43,22 @@ const PHASES = ["applying-config", "installing", "awaiting-reboot", "ceremony", 
 // PhaseRail renders the ordered adoption phases with the current one
 // highlighted and completed ones checked. It reads live from the streamed
 // phases so partial progress stays visible if a later step needs follow-up.
+// phaseTone picks the color class for one phase row from its state, avoiding a
+// nested ternary in the JSX.
+const phaseTone = (active: boolean, passed: boolean, error: boolean): string => {
+  if (error && active) return "text-destructive";
+  if (passed) return "text-success";
+  if (active) return "text-primary";
+  return "text-muted-foreground";
+};
+
+// phaseGlyph picks the leading marker for one phase row.
+const phaseGlyph = (active: boolean, passed: boolean): string => {
+  if (passed) return "✓";
+  if (active) return "→";
+  return "·";
+};
+
 const PhaseRail = ({ current, error }: { current: null | string; error: boolean }) => {
   const currentIndex = current ? PHASES.indexOf(current) : -1;
   return (
@@ -52,18 +68,8 @@ const PhaseRail = ({ current, error }: { current: null | string; error: boolean 
         const active = currentIndex === i && current !== "established";
         return (
           <li className="flex items-center gap-2 font-mono text-xs" key={p}>
-            <span
-              className={
-                error && active
-                  ? "text-destructive"
-                  : passed
-                    ? "text-success"
-                    : active
-                      ? "text-primary"
-                      : "text-muted-foreground"
-              }
-            >
-              {passed ? "✓" : active ? "→" : "·"} {p}
+            <span className={phaseTone(active, passed, error)}>
+              {phaseGlyph(active, passed)} {p}
             </span>
           </li>
         );
@@ -168,7 +174,11 @@ export const AdoptPage = () => {
           />
         </label>
         {confirmedPin ? null : (
-          <Button disabled={pending || !endpoint.trim()} onClick={() => void runPreview()} size="sm">
+          <Button
+            disabled={pending || !endpoint.trim()}
+            onClick={() => void runPreview()}
+            size="sm"
+          >
             {pending ? "Contacting…" : "Preview"}
           </Button>
         )}
@@ -207,7 +217,11 @@ export const AdoptPage = () => {
           </p>
           <label className="block space-y-1">
             <span className={label}>Node name</span>
-            <input className={field} onChange={(e) => setNodeName(e.target.value)} value={nodeName} />
+            <input
+              className={field}
+              onChange={(e) => setNodeName(e.target.value)}
+              value={nodeName}
+            />
           </label>
           <label className="block space-y-1">
             <span className={label}>Install disk</span>
@@ -244,7 +258,11 @@ export const AdoptPage = () => {
               {nodeName || "The node"} is established and linked to the fleet.
             </p>
           ) : (
-            <Button disabled={pending || !nodeName.trim()} onClick={() => void runAdopt()} size="sm">
+            <Button
+              disabled={pending || !nodeName.trim()}
+              onClick={() => void runAdopt()}
+              size="sm"
+            >
               {pending ? "Adopting…" : "Adopt node"}
             </Button>
           )}

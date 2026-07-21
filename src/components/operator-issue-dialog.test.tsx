@@ -85,7 +85,11 @@ describe("OperatorIssueDialog", () => {
     fireEvent.click(issueButton());
 
     await waitFor(() =>
-      expect(issueOperatorCredential).toHaveBeenCalledWith("op@acme", "admin", expect.any(Uint8Array)),
+      expect(issueOperatorCredential).toHaveBeenCalledWith(
+        "op@acme",
+        "admin",
+        expect.any(Uint8Array),
+      ),
     );
     await waitFor(() => expect(globalThis.URL.createObjectURL).toHaveBeenCalled());
     await waitFor(() => expect(screen.getByText(/PKCS#12 downloaded/i)).toBeInTheDocument());

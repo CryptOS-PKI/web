@@ -19,7 +19,11 @@ limitations under the License.
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { generateLeafKeyAndCSR, generateStrongPassphrase, MIN_PASSPHRASE_LENGTH } from "@/lib/crypto/leaf-key";
+import {
+  generateLeafKeyAndCSR,
+  generateStrongPassphrase,
+  MIN_PASSPHRASE_LENGTH,
+} from "@/lib/crypto/leaf-key";
 import { assemblePkcs12 } from "@/lib/crypto/pkcs12";
 import { issueOperatorCredential, type OperatorLevel } from "@/lib/operators";
 
@@ -50,7 +54,13 @@ const download = (filename: string, contents: Uint8Array): void => {
 // >= 18-character passphrase (typed or generated) AND a typed confirmation are
 // both required before the download button enables. The private key and the
 // passphrase are never logged and never rendered back.
-export const OperatorIssueDialog = ({ onClose, onIssued }: { onClose: () => void; onIssued: () => void }) => {
+export const OperatorIssueDialog = ({
+  onClose,
+  onIssued,
+}: {
+  onClose: () => void;
+  onIssued: () => void;
+}) => {
   const [commonName, setCommonName] = useState("");
   const [level, setLevel] = useState<OperatorLevel>("operator");
   const [passphrase, setPassphrase] = useState("");

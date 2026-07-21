@@ -24,7 +24,8 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/auth";
 import { listOperatorCredentials, type OperatorCredentialRow } from "@/lib/operators";
 
-const th = "px-3 py-2 text-left font-mono text-[11px] uppercase tracking-wider text-muted-foreground";
+const th =
+  "px-3 py-2 text-left font-mono text-[11px] uppercase tracking-wider text-muted-foreground";
 const td = "px-3 py-2 font-mono text-xs";
 
 // OperatorsPage is the admin surface for operator credential lifecycle (S9):
@@ -74,8 +75,8 @@ export const OperatorsPage = () => {
         className="max-w-3xl rounded-md border border-warning/40 bg-warning/5 p-3 text-sm text-muted-foreground"
         role="note"
       >
-        Operator credentials are signed by the operator-CA node. Revoking one takes effect fleet-wide:
-        the manager denies the revoked certificate at its authorization layer.
+        Operator credentials are signed by the operator-CA node. Revoking one takes effect
+        fleet-wide: the manager denies the revoked certificate at its authorization layer.
       </p>
 
       {loadError ? (
@@ -136,10 +137,7 @@ export const OperatorsPage = () => {
       </div>
 
       {showIssue ? (
-        <OperatorIssueDialog
-          onClose={() => setShowIssue(false)}
-          onIssued={() => void load()}
-        />
+        <OperatorIssueDialog onClose={() => setShowIssue(false)} onIssued={() => void load()} />
       ) : null}
       {revokeTarget ? (
         <OperatorRevokeDialog

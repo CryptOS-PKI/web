@@ -28,13 +28,19 @@ import {
   encodeEncryptedPrivateKeyInfo,
   IV_BYTES,
   MIN_PASSPHRASE_LENGTH,
-  OID_AES_256_CBC,
-  OID_HMAC_SHA256,
-  OID_PBES2,
-  OID_PBKDF2,
   PBKDF2_ITERATIONS,
   SALT_BYTES,
 } from "@/lib/crypto/leaf-key";
+
+// bufferOf returns an ArrayBuffer-backed copy of the bytes so WebCrypto's
+// BufferSource-typed parameters accept it regardless of the source view's
+// backing store (a plain Uint8Array can be SharedArrayBuffer-backed in the DOM
+// lib types).
+const bufferOf = (bytes: Uint8Array): ArrayBuffer => {
+  const copy = new Uint8Array(bytes.length);
+  copy.set(bytes);
+  return copy.buffer;
+};
 
 // This module assembles a passphrase-protected PKCS#12 (RFC 7292) in the
 // browser from a certificate the operator-CA node just signed and the private
@@ -103,10 +109,7 @@ const safeBag = (bagId: string, bagValue: Uint8Array): Uint8Array =>
 // certBag wraps the DER certificate as a CertBag ::= SEQUENCE { certId OID,
 // certValue [0] EXPLICIT OCTET STRING }.
 const certBag = (certDer: Uint8Array): Uint8Array =>
-  derSequence(
-    derOid(OID_PKCS9_X509_CERTIFICATE),
-    derContextExplicit(0, derOctetString(certDer)),
-  );
+  derSequence(derOid(OID_PKCS9_X509_CERTIFICATE), derContextExplicit(0, derOctetString(certDer)));
 
 // contentInfoData wraps content in a ContentInfo of type id-data, where the
 // content is an OCTET STRING carrying the DER of the SafeContents SEQUENCE.
@@ -242,18 +245,15 @@ const buildMacData = async (
   const macKey = pkcs12Kdf(passphrase, macSalt, MAC_ITERATIONS, 3);
   const hmacKey = await crypto.subtle.importKey(
     "raw",
-    macKey,
+    bufferOf(macKey),
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"],
   );
-  const mac = new Uint8Array(await crypto.subtle.sign("HMAC", hmacKey, authSafeContent));
+  const mac = new Uint8Array(await crypto.subtle.sign("HMAC", hmacKey, bufferOf(authSafeContent)));
 
   // DigestInfo ::= SEQUENCE { digestAlgorithm AlgorithmIdentifier, digest OCTET STRING }
-  const digestInfo = derSequence(
-    derSequence(derOid(OID_SHA256), derNull()),
-    derOctetString(mac),
-  );
+  const digestInfo = derSequence(derSequence(derOid(OID_SHA256), derNull()), derOctetString(mac));
   return derSequence(digestInfo, derOctetString(macSalt), derInteger(MAC_ITERATIONS));
 };
 
