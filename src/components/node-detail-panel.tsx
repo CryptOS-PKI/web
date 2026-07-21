@@ -16,10 +16,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+import { useState } from "react";
 import { Link } from "react-router-dom";
 
+import { EscrowExportDialog } from "@/components/escrow-export-dialog";
+import { EscrowImportDialog } from "@/components/escrow-import-dialog";
 import { IdentityBadge } from "@/components/identity-badge";
 import { Button } from "@/components/ui/button";
+import { useOptionalAuth } from "@/context/auth";
 import { canIssue } from "@/lib/certs";
 import { type Node, roleLabels } from "@/lib/mock";
 import { cn } from "@/lib/utils";
@@ -64,6 +68,9 @@ const fleetManagerText = (node: Node): string => {
 const DASH = "—";
 
 export const NodeDetailPanel = ({ node }: { node: Node }) => {
+  const isAdmin = useOptionalAuth()?.operator?.level === "admin";
+  const [dialog, setDialog] = useState<"export" | "import" | null>(null);
+
   return (
     <div className="p-4">
       <div className="text-lg font-bold">{node.name}</div>
@@ -118,7 +125,24 @@ export const NodeDetailPanel = ({ node }: { node: Node }) => {
             <Link to={`/nodes/${node.name}/rekey`}>{"Re-key\u2026"}</Link>
           </Button>
         )}
+        {isAdmin ? (
+          <Button onClick={() => setDialog("export")} size="sm" variant="outline">
+            {"Export key\u2026"}
+          </Button>
+        ) : null}
+        {isAdmin ? (
+          <Button onClick={() => setDialog("import")} size="sm" variant="outline">
+            {"Import key\u2026"}
+          </Button>
+        ) : null}
       </div>
+
+      {dialog === "export" ? (
+        <EscrowExportDialog nodeName={node.name} onClose={() => setDialog(null)} />
+      ) : null}
+      {dialog === "import" ? (
+        <EscrowImportDialog nodeName={node.name} onClose={() => setDialog(null)} />
+      ) : null}
     </div>
   );
 };
