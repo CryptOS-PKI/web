@@ -29,6 +29,7 @@ const items: { end?: boolean; label: string; to: string }[] = [
   { label: "Profiles", to: "/profiles" },
   { label: "Protocols", to: "/protocols" },
   { label: "Root", to: "/root" },
+  { label: "Operators", to: "/operators" },
   { label: "Audit", to: "/audit" },
 ];
 

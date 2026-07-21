@@ -34,6 +34,7 @@ import { NodeProfilesPage } from "@/pages/node-profiles";
 import { NodeRekeyPage } from "@/pages/node-rekey";
 import { NodesPage } from "@/pages/nodes";
 import { NotFoundPage } from "@/pages/not-found";
+import { OperatorsPage } from "@/pages/operators";
 import { ProfileDetailPage } from "@/pages/profile-detail";
 import { ProfileNewPage } from "@/pages/profile-new";
 import { ProfilesPage } from "@/pages/profiles";
@@ -61,6 +62,7 @@ export const App = () => {
           <Route element={<EnrollmentPage />} path="enrollment" />
           <Route element={<EnrollmentDetailPage />} path="enrollment/:id" />
           <Route element={<AuditPage />} path="audit" />
+          <Route element={<OperatorsPage />} path="operators" />
           <Route element={<CertificatesPage />} path="certificates" />
           <Route element={<ProfilesPage />} path="profiles" />
           <Route element={<ProtocolsPage />} path="protocols" />
