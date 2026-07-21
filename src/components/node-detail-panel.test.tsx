@@ -45,16 +45,18 @@ describe("NodeDetailPanel escrow actions", () => {
     level = "admin";
   });
 
-  it("shows Export/Import key actions to an admin", () => {
+  it("shows Export/Import key and Decommission actions to an admin", () => {
     renderPanel();
     expect(screen.getByRole("button", { name: /export key/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /import key/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /decommission/i })).toBeInTheDocument();
   });
 
-  it("hides escrow actions from a non-admin operator", () => {
+  it("hides escrow and decommission actions from a non-admin operator", () => {
     level = "operator";
     renderPanel();
     expect(screen.queryByRole("button", { name: /export key/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /import key/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /decommission/i })).not.toBeInTheDocument();
   });
 });

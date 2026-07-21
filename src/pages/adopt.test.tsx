@@ -1,0 +1,92 @@
+/*
+Apache License 2.0
+
+Copyright 2026 Shane
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+
+import { AdoptPage } from "@/pages/adopt";
+
+const useAuth = vi.fn();
+vi.mock("@/context/auth", () => ({ useAuth: () => useAuth() }));
+
+const previewAdoption = vi.fn();
+const adoptNode = vi.fn();
+vi.mock("@/lib/adopt", () => ({
+  adoptNode: (...a: unknown[]) => adoptNode(...a),
+  previewAdoption: (...a: unknown[]) => previewAdoption(...a),
+}));
+
+describe("AdoptPage", () => {
+  it("gates the whole wizard behind admin level", () => {
+    useAuth.mockReturnValue({ operator: { level: "operator" } });
+    render(<AdoptPage />);
+    expect(screen.getByText(/requires admin level/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/endpoint/i)).not.toBeInTheDocument();
+  });
+
+  it("previews the fingerprint, requires an explicit confirm, then reveals step 2", async () => {
+    useAuth.mockReturnValue({ operator: { level: "admin" } });
+    previewAdoption.mockResolvedValue({ certSha256: "AB:CD:EF", subject: "CN=maintenance" });
+    render(<AdoptPage />);
+
+    fireEvent.change(screen.getByLabelText(/endpoint/i), { target: { value: "host:9000" } });
+    fireEvent.click(screen.getByRole("button", { name: /preview/i }));
+
+    await waitFor(() => expect(screen.getByText(/AB:CD:EF/)).toBeInTheDocument());
+    // Step 2 is hidden until the operator confirms the fingerprint.
+    expect(screen.queryByLabelText(/node name/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /confirm fingerprint/i }));
+    expect(screen.getByText(/pinned for this adoption/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/node name/i)).toBeInTheDocument();
+  });
+
+  it("streams phase progress and shows the node established", async () => {
+    useAuth.mockReturnValue({ operator: { level: "admin" } });
+    previewAdoption.mockResolvedValue({ certSha256: "AB:CD:EF", subject: "CN=maintenance" });
+    adoptNode.mockReturnValue(
+      (async function* () {
+        yield { detail: "Applying.", done: false, phase: "applying-config" };
+        yield { detail: "Done.", done: true, phase: "established" };
+      })(),
+    );
+    render(<AdoptPage />);
+
+    fireEvent.change(screen.getByLabelText(/endpoint/i), { target: { value: "host:9000" } });
+    fireEvent.click(screen.getByRole("button", { name: /preview/i }));
+    await waitFor(() => screen.getByRole("button", { name: /confirm fingerprint/i }));
+    fireEvent.click(screen.getByRole("button", { name: /confirm fingerprint/i }));
+
+    fireEvent.change(screen.getByLabelText(/node name/i), { target: { value: "acme-edge-07" } });
+    fireEvent.click(screen.getByRole("button", { name: /adopt node/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText(/acme-edge-07 is established/i)).toBeInTheDocument(),
+    );
+    expect(adoptNode).toHaveBeenCalledWith("host:9000", "AB:CD:EF", expect.anything());
+  });
+
+  it("surfaces a preview error inline", async () => {
+    useAuth.mockReturnValue({ operator: { level: "admin" } });
+    previewAdoption.mockRejectedValue(new Error("endpoint unreachable"));
+    render(<AdoptPage />);
+    fireEvent.change(screen.getByLabelText(/endpoint/i), { target: { value: "host:9000" } });
+    fireEvent.click(screen.getByRole("button", { name: /preview/i }));
+    await waitFor(() => expect(screen.getByText(/unreachable/i)).toBeInTheDocument());
+  });
+});

@@ -43,6 +43,7 @@ describe("TopNav", () => {
     expect(screen.getByRole("link", { name: /profiles/i })).toHaveAttribute("href", "/profiles");
     expect(screen.getByRole("link", { name: /protocols/i })).toHaveAttribute("href", "/protocols");
     expect(screen.getByRole("link", { name: /root/i })).toHaveAttribute("href", "/root");
+    expect(screen.getByRole("link", { name: /operators/i })).toHaveAttribute("href", "/operators");
     expect(screen.getByRole("link", { name: /audit/i })).toBeInTheDocument();
   });
 });
