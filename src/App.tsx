@@ -20,6 +20,7 @@ import { Route, Routes } from "react-router-dom";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { AuthGate } from "@/components/layout/auth-gate";
+import { AdoptPage } from "@/pages/adopt";
 import { AuditPage } from "@/pages/audit";
 import { CertificatesPage } from "@/pages/certificates";
 import { DashboardPage } from "@/pages/dashboard";
@@ -63,6 +64,7 @@ export const App = () => {
           <Route element={<EnrollmentDetailPage />} path="enrollment/:id" />
           <Route element={<AuditPage />} path="audit" />
           <Route element={<OperatorsPage />} path="operators" />
+          <Route element={<AdoptPage />} path="adopt" />
           <Route element={<CertificatesPage />} path="certificates" />
           <Route element={<ProfilesPage />} path="profiles" />
           <Route element={<ProtocolsPage />} path="protocols" />

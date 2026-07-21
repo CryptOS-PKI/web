@@ -24,6 +24,7 @@ const items: { end?: boolean; label: string; to: string }[] = [
   { end: true, label: "Dashboard", to: "/" },
   { label: "Fleet", to: "/fleet" },
   { label: "Nodes", to: "/nodes" },
+  { label: "Adopt", to: "/adopt" },
   { label: "Certificates", to: "/certificates" },
   { label: "Enrollment", to: "/enrollment" },
   { label: "Profiles", to: "/profiles" },
