@@ -88,6 +88,12 @@ export const AdoptPage = () => {
   const [confirmedPin, setConfirmedPin] = useState<null | string>(null);
 
   const [nodeName, setNodeName] = useState("");
+  const [role, setRole] = useState("root");
+  const [netInterface, setNetInterface] = useState("eth0");
+  const [address, setAddress] = useState("");
+  const [gateway, setGateway] = useState("");
+  const [rootCn, setRootCn] = useState("");
+  const [validityYears, setValidityYears] = useState("10");
   const [disk, setDisk] = useState("/dev/sda");
   const [crl, setCrl] = useState("");
   const [tier, setTier] = useState(tiers[0]);
@@ -134,7 +140,14 @@ export const AdoptPage = () => {
       install: { disk },
       kind: "MachineConfig",
       metadata: { name: nodeName },
-      pki: { revocationBaseUrl: crl },
+      network: { address, gateway, interface: netInterface },
+      pki: {
+        revocationBaseUrl: crl,
+        rootKeyAlg: "ECDSA-P384",
+        rootSubject: { commonName: rootCn },
+        rootValidityYears: Number(validityYears) || 10,
+      },
+      role: { kind: role },
       stateKey: { mode: tierToMode[tier] ?? "" },
     });
     try {
@@ -222,6 +235,54 @@ export const AdoptPage = () => {
               className={field}
               onChange={(e) => setNodeName(e.target.value)}
               value={nodeName}
+            />
+          </label>
+          <label className="block space-y-1">
+            <span className={label}>Role</span>
+            <select className={field} onChange={(e) => setRole(e.target.value)} value={role}>
+              {["root", "intermediate", "issuing"].map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block space-y-1">
+            <span className={label}>Root CA subject common name</span>
+            <input className={field} onChange={(e) => setRootCn(e.target.value)} value={rootCn} />
+          </label>
+          <label className="block space-y-1">
+            <span className={label}>Root validity (years)</span>
+            <input
+              className={field}
+              onChange={(e) => setValidityYears(e.target.value)}
+              value={validityYears}
+            />
+          </label>
+          <label className="block space-y-1">
+            <span className={label}>Network interface</span>
+            <input
+              className={field}
+              onChange={(e) => setNetInterface(e.target.value)}
+              value={netInterface}
+            />
+          </label>
+          <label className="block space-y-1">
+            <span className={label}>Address (CIDR)</span>
+            <input
+              className={field}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="10.0.0.10/24"
+              value={address}
+            />
+          </label>
+          <label className="block space-y-1">
+            <span className={label}>Gateway</span>
+            <input
+              className={field}
+              onChange={(e) => setGateway(e.target.value)}
+              placeholder="10.0.0.1"
+              value={gateway}
             />
           </label>
           <label className="block space-y-1">

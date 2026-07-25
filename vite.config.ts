@@ -22,6 +22,17 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   plugins: [react()],
+  // Dev-only: proxy the Connect API to the local manager so the browser talks
+  // only to the vite origin (no separate manager port / CORS). Target overridable
+  // via VITE_MANAGER_PROXY for the local ESXi E2E.
+  server: {
+    proxy: {
+      "/cryptos.fleet.v1.FleetService": {
+        changeOrigin: true,
+        target: process.env.VITE_MANAGER_PROXY ?? "http://127.0.0.1:18099",
+      },
+    },
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
