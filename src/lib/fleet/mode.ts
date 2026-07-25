@@ -16,16 +16,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// The single data-source seam for the Fleet Manager web UI. `mock` (the
-// default) keeps every surface on the existing in-memory fixtures; `live`
-// routes reads through the manager over Connect; `live-auth` is the same live
-// path with the gateway session attached (not yet lit -- treated as `live`
-// until the BFF/session wiring lands). Unset or unrecognized values fall back
-// to `mock` so a missing env var never accidentally goes live.
+// The single data-source seam for the Fleet Manager web UI. `live` (the
+// default) routes reads through the manager over Connect; `live-auth` is the
+// same live path with the gateway session attached (not yet lit -- treated as
+// `live` by consumers until the BFF/session wiring lands). `mock` is an
+// explicit dev opt-in (VITE_FLEET_MODE=mock) that keeps every surface on the
+// in-memory fixtures for offline UI work. Unset or unrecognized values default
+// to `live` now that the full loop is proven against a real node (X1 cutover).
 export type FleetMode = "live" | "live-auth" | "mock";
 
 export const fleetMode = (): FleetMode => {
   const raw = import.meta.env.VITE_FLEET_MODE;
-  if (raw === "live" || raw === "live-auth") return raw;
-  return "mock";
+  if (raw === "mock" || raw === "live-auth") return raw;
+  return "live";
 };
