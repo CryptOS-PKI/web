@@ -20,11 +20,11 @@ import { Link, Navigate, useParams } from "react-router-dom";
 
 import { RekeyWizard } from "@/components/rekey-wizard";
 import { Button } from "@/components/ui/button";
-import { getNode } from "@/lib/nodes";
+import { useNode } from "@/lib/nodes";
 
 export const NodeRekeyPage = () => {
   const { name } = useParams<{ name: string }>();
-  const node = name ? getNode(name) : undefined;
+  const node = useNode(name);
 
   if (!node || node.identityState === "REVOKED") {
     return <Navigate replace to={`/nodes/${name}`} />;

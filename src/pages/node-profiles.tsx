@@ -23,7 +23,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/auth";
 import { getNodeConfig } from "@/lib/config";
 import { fleetMode } from "@/lib/fleet/mode";
-import { getNode } from "@/lib/nodes";
+import { useNode } from "@/lib/nodes";
 import { computeDrift, type DriftRow, type DriftStatus } from "@/lib/profile-drift";
 import { applyProfileToNode, fromProtoProfile, useProfiles } from "@/lib/profiles";
 import { cn } from "@/lib/utils";
@@ -151,7 +151,7 @@ const DriftView = ({ nodeName }: { nodeName: string }) => {
 
 export const NodeProfilesPage = () => {
   const { name } = useParams<{ name: string }>();
-  const node = name ? getNode(name) : undefined;
+  const node = useNode(name);
 
   if (!node) {
     return <Navigate replace to={`/nodes/${name}`} />;

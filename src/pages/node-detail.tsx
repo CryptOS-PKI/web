@@ -22,7 +22,7 @@ import { CertInventory } from "@/components/cert-inventory";
 import { NodeDetailPanel } from "@/components/node-detail-panel";
 import { Button } from "@/components/ui/button";
 import { type IdentityState, roleLabels } from "@/lib/mock";
-import { chainToRoot, getNode } from "@/lib/nodes";
+import { chainToRoot, useNode } from "@/lib/nodes";
 import { cn } from "@/lib/utils";
 
 const stateTone: Record<IdentityState, string> = {
@@ -33,7 +33,7 @@ const stateTone: Record<IdentityState, string> = {
 
 export const NodeDetailPage = () => {
   const { name } = useParams<{ name: string }>();
-  const node = name ? getNode(name) : undefined;
+  const node = useNode(name);
 
   if (!node) {
     return (
