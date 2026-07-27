@@ -21,7 +21,7 @@ import { Link, Navigate, useParams } from "react-router-dom";
 import { ConfigForm } from "@/components/config-form";
 import { RekeyWizard } from "@/components/rekey-wizard";
 import { Button } from "@/components/ui/button";
-import { getNode } from "@/lib/nodes";
+import { useNode } from "@/lib/nodes";
 
 const Panel = ({ children, label }: { children: React.ReactNode; label: string }) => (
   <div className="w-full rounded-xl border bg-card">
@@ -43,7 +43,7 @@ const Field = ({ children, label }: { children: React.ReactNode; label: string }
 
 export const RootDetailPage = () => {
   const { name } = useParams<{ name: string }>();
-  const node = name ? getNode(name) : undefined;
+  const node = useNode(name);
 
   if (!node || node.role !== "root") {
     return <Navigate replace to="/root" />;

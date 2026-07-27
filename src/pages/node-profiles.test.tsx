@@ -52,7 +52,7 @@ vi.mock("@/lib/config", () => ({
   getNodeConfig: (...args: unknown[]) => getNodeConfig(...args),
 }));
 vi.mock("@/lib/nodes", () => ({
-  getNode: (name: string) => ({ identityState: "ESTABLISHED", name }),
+  useNode: (name: string) => ({ identityState: "ESTABLISHED", name }),
 }));
 vi.mock("@/lib/profiles", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/profiles")>();

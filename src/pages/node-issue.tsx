@@ -22,11 +22,11 @@ import { Link, Navigate, useParams } from "react-router-dom";
 import { IssueForm } from "@/components/issue-form";
 import { Button } from "@/components/ui/button";
 import { canIssue, type Cert } from "@/lib/certs";
-import { getNode } from "@/lib/nodes";
+import { useNode } from "@/lib/nodes";
 
 export const NodeIssuePage = () => {
   const { name } = useParams<{ name: string }>();
-  const node = name ? getNode(name) : undefined;
+  const node = useNode(name);
   const [issued, setIssued] = useState<Cert | null>(null);
   // Remount key: bumping it drops the form's issued/export state so "Issue
   // another" starts from a clean form (and a fresh, unexportable key).

@@ -125,6 +125,15 @@ export const useNodes = (): Node[] => {
   );
 };
 
+// useNode is the reactive single-node lookup for per-node pages. It subscribes
+// via useNodes so the live fleet is fetched and the page re-renders when it
+// arrives — a bare getNode() reads the module store synchronously and, on a
+// direct load or refresh in live mode, finds an empty store and never recovers.
+export const useNode = (name: string | undefined): Node | undefined => {
+  const all = useNodes();
+  return name ? all.find((n) => n.name === name) : undefined;
+};
+
 // The trust chain from the root down to this node, following parentCn. Guards a
 // missing parent link and a cycle so a broken fixture can't loop forever.
 export const chainToRoot = (node: Node): Node[] => {
