@@ -186,10 +186,12 @@ export const AdoptPage = () => {
     // A root self-signs, so it carries root_validity_years and no parent. A
     // subordinate's validity comes from the parent's sub-CA profile at signing
     // time, so it omits root_validity_years and instead pins the parent anchor.
+    // A subordinate is NOT a CA until its enrollment is signed, so it carries no
+    // revocation config at adopt time (that is set later, once it is
+    // established, via apply-config); sending it now stalls first-boot.
     const pki = isSubordinate
       ? {
           parent: { caCertPem: parentAnchor },
-          revocationBaseUrl: crl,
           rootKeyAlg: "ECDSA-P384",
           rootSubject: { commonName: rootCn },
         }
@@ -389,10 +391,15 @@ export const AdoptPage = () => {
             <span className={label}>Install disk</span>
             <input className={field} onChange={(e) => setDisk(e.target.value)} value={disk} />
           </label>
-          <label className="block space-y-1">
-            <span className={label}>Revocation base URL (CRL/OCSP)</span>
-            <input className={field} onChange={(e) => setCrl(e.target.value)} value={crl} />
-          </label>
+          {/* Revocation is a CA responsibility, so it is offered only for a root
+              at adopt time. A subordinate is not a CA until its enrollment is
+              signed; its revocation base URL is set afterward via apply-config. */}
+          {isSubordinate ? null : (
+            <label className="block space-y-1">
+              <span className={label}>Revocation base URL (CRL/OCSP)</span>
+              <input className={field} onChange={(e) => setCrl(e.target.value)} value={crl} />
+            </label>
+          )}
           <label className="block space-y-1">
             <span className={label}>Key protection tier</span>
             <select className={field} onChange={(e) => setTier(e.target.value)} value={tier}>
