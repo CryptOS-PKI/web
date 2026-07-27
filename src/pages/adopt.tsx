@@ -22,7 +22,14 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/auth";
 import { MachineConfigSchema } from "@/gen/fleet/cryptos/v1/config_pb";
-import { type AdoptionPreview, adoptNode, type AdoptPhase, previewAdoption } from "@/lib/adopt";
+import {
+  type AdoptionPreview,
+  adoptNode,
+  type AdoptPhase,
+  fetchParentAnchor,
+  previewAdoption,
+} from "@/lib/adopt";
+import { useNodes } from "@/lib/nodes";
 
 const field = "w-full rounded-md border bg-card px-3 py-2 font-mono text-sm";
 const label = "font-mono text-[11px] uppercase tracking-wider text-muted-foreground";
@@ -37,8 +44,16 @@ const tierToMode: Record<string, string> = {
 };
 
 // The manager's documented phases, in order, so the progress rail can show
-// every step and mark those already passed.
-const PHASES = ["applying-config", "installing", "awaiting-reboot", "ceremony", "established"];
+// every step and mark those already passed. A root self-signs via the ceremony
+// and reaches "established"; a subordinate skips the ceremony and ends at
+// "awaiting-certificate", completed later by a subordinate enrollment.
+const ROOT_PHASES = ["applying-config", "installing", "awaiting-reboot", "ceremony", "established"];
+const SUBORDINATE_PHASES = [
+  "applying-config",
+  "installing",
+  "awaiting-reboot",
+  "awaiting-certificate",
+];
 
 // PhaseRail renders the ordered adoption phases with the current one
 // highlighted and completed ones checked. It reads live from the streamed
@@ -60,13 +75,22 @@ const phaseGlyph = (active: boolean, passed: boolean): string => {
   return "[ ]";
 };
 
-const PhaseRail = ({ current, error }: { current: null | string; error: boolean }) => {
-  const currentIndex = current ? PHASES.indexOf(current) : -1;
+const PhaseRail = ({
+  current,
+  error,
+  phases,
+}: {
+  current: null | string;
+  error: boolean;
+  phases: string[];
+}) => {
+  const terminal = phases.at(-1);
+  const currentIndex = current ? phases.indexOf(current) : -1;
   return (
     <ol className="space-y-1.5">
-      {PHASES.map((p, i) => {
-        const passed = currentIndex > i || (currentIndex === i && current === "established");
-        const active = currentIndex === i && current !== "established";
+      {phases.map((p, i) => {
+        const passed = currentIndex > i || (currentIndex === i && current === terminal);
+        const active = currentIndex === i && current !== terminal;
         return (
           <li className="flex items-center gap-2 font-mono text-xs" key={p}>
             <span className={phaseTone(active, passed, error)}>
@@ -98,9 +122,33 @@ export const AdoptPage = () => {
   const [crl, setCrl] = useState("");
   const [tier, setTier] = useState(tiers[0]);
 
+  // Subordinate (intermediate/issuing) adoption: the operator picks a parent
+  // node and we embed its CA certificate as the trust anchor. Established nodes
+  // are the eligible parents; the anchor is fetched on selection.
+  const isSubordinate = role !== "root";
+  const parents = useNodes().filter((n) => n.identityState === "ESTABLISHED");
+  const [parentName, setParentName] = useState("");
+  const [parentAnchor, setParentAnchor] = useState("");
+  const [parentBusy, setParentBusy] = useState(false);
+
   const [phase, setPhase] = useState<AdoptPhase | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
+
+  const selectParent = async (name: string) => {
+    setParentName(name);
+    setParentAnchor("");
+    if (!name) return;
+    setError("");
+    setParentBusy(true);
+    try {
+      setParentAnchor(await fetchParentAnchor(name));
+    } catch (error_: unknown) {
+      setError(error_ instanceof Error ? error_.message : "Could not load the parent certificate");
+    } finally {
+      setParentBusy(false);
+    }
+  };
 
   if (!isAdmin) {
     return (
@@ -135,18 +183,31 @@ export const AdoptPage = () => {
     // The initial config the manager applies to the maintenance node. Only the
     // fields the operator set are populated; the node fills its build-time
     // defaults for the rest.
+    // A root self-signs, so it carries root_validity_years and no parent. A
+    // subordinate's validity comes from the parent's sub-CA profile at signing
+    // time, so it omits root_validity_years and instead pins the parent anchor.
+    // A subordinate is NOT a CA until its enrollment is signed, so it carries no
+    // revocation config at adopt time (that is set later, once it is
+    // established, via apply-config); sending it now stalls first-boot.
+    const pki = isSubordinate
+      ? {
+          parent: { caCertPem: parentAnchor },
+          rootKeyAlg: "ECDSA-P384",
+          rootSubject: { commonName: rootCn },
+        }
+      : {
+          revocationBaseUrl: crl,
+          rootKeyAlg: "ECDSA-P384",
+          rootSubject: { commonName: rootCn },
+          rootValidityYears: Number(validityYears) || 10,
+        };
     const config = create(MachineConfigSchema, {
       apiVersion: "cryptos.dev/v1alpha1",
       install: { disk },
       kind: "MachineConfig",
       metadata: { name: nodeName },
       network: { address, gateway, interface: netInterface },
-      pki: {
-        revocationBaseUrl: crl,
-        rootKeyAlg: "ECDSA-P384",
-        rootSubject: { commonName: rootCn },
-        rootValidityYears: Number(validityYears) || 10,
-      },
+      pki,
       role: { kind: role },
       stateKey: { mode: tierToMode[tier] ?? "" },
     });
@@ -162,6 +223,7 @@ export const AdoptPage = () => {
   };
 
   const established = phase?.done && phase.phase === "established";
+  const awaitingCert = phase?.done && phase.phase === "awaiting-certificate";
 
   return (
     <section className="max-w-xl space-y-5">
@@ -247,18 +309,58 @@ export const AdoptPage = () => {
               ))}
             </select>
           </label>
+
+          {/* A subordinate is signed by a parent CA already in the fleet: pick it
+              and pin its certificate as the trust anchor. */}
+          {isSubordinate ? (
+            <label className="block space-y-1">
+              <span className={label}>Parent CA (signs this node)</span>
+              <select
+                className={field}
+                onChange={(e) => void selectParent(e.target.value)}
+                value={parentName}
+              >
+                <option value="">Select a parent…</option>
+                {parents.map((n) => (
+                  <option key={n.name} value={n.name}>
+                    {n.cn ? `${n.name} — ${n.cn}` : n.name}
+                  </option>
+                ))}
+              </select>
+              {parentBusy ? (
+                <span className="font-mono text-[11px] text-muted-foreground" role="status">
+                  Loading parent certificate…
+                </span>
+              ) : null}
+              {parentAnchor && !parentBusy ? (
+                <span className="font-mono text-[11px] text-success" role="status">
+                  Parent certificate pinned as the trust anchor.
+                </span>
+              ) : null}
+              {parents.length === 0 ? (
+                <span className="font-mono text-[11px] text-warning">
+                  No established parent CA in the fleet yet — adopt a root first.
+                </span>
+              ) : null}
+            </label>
+          ) : null}
+
           <label className="block space-y-1">
-            <span className={label}>Root CA subject common name</span>
+            <span className={label}>
+              {isSubordinate ? "CA subject common name" : "Root CA subject common name"}
+            </span>
             <input className={field} onChange={(e) => setRootCn(e.target.value)} value={rootCn} />
           </label>
-          <label className="block space-y-1">
-            <span className={label}>Root validity (years)</span>
-            <input
-              className={field}
-              onChange={(e) => setValidityYears(e.target.value)}
-              value={validityYears}
-            />
-          </label>
+          {isSubordinate ? null : (
+            <label className="block space-y-1">
+              <span className={label}>Root validity (years)</span>
+              <input
+                className={field}
+                onChange={(e) => setValidityYears(e.target.value)}
+                value={validityYears}
+              />
+            </label>
+          )}
           <label className="block space-y-1">
             <span className={label}>Network interface</span>
             <input
@@ -289,10 +391,15 @@ export const AdoptPage = () => {
             <span className={label}>Install disk</span>
             <input className={field} onChange={(e) => setDisk(e.target.value)} value={disk} />
           </label>
-          <label className="block space-y-1">
-            <span className={label}>Revocation base URL (CRL/OCSP)</span>
-            <input className={field} onChange={(e) => setCrl(e.target.value)} value={crl} />
-          </label>
+          {/* Revocation is a CA responsibility, so it is offered only for a root
+              at adopt time. A subordinate is not a CA until its enrollment is
+              signed; its revocation base URL is set afterward via apply-config. */}
+          {isSubordinate ? null : (
+            <label className="block space-y-1">
+              <span className={label}>Revocation base URL (CRL/OCSP)</span>
+              <input className={field} onChange={(e) => setCrl(e.target.value)} value={crl} />
+            </label>
+          )}
           <label className="block space-y-1">
             <span className={label}>Key protection tier</span>
             <select className={field} onChange={(e) => setTier(e.target.value)} value={tier}>
@@ -306,7 +413,11 @@ export const AdoptPage = () => {
 
           {phase ? (
             <div className="space-y-2 rounded-md border bg-secondary p-3">
-              <PhaseRail current={phase.phase} error={!!error} />
+              <PhaseRail
+                current={phase.phase}
+                error={!!error}
+                phases={isSubordinate ? SUBORDINATE_PHASES : ROOT_PHASES}
+              />
               {phase.detail ? (
                 <p className="font-mono text-xs text-muted-foreground" role="status">
                   {phase.detail}
@@ -315,19 +426,33 @@ export const AdoptPage = () => {
             </div>
           ) : null}
 
-          {established ? (
-            <p className="font-mono text-sm text-success" role="status">
-              {nodeName || "The node"} is established and linked to the fleet.
-            </p>
-          ) : (
-            <Button
-              disabled={pending || !nodeName.trim()}
-              onClick={() => void runAdopt()}
-              size="sm"
-            >
-              {pending ? "Adopting…" : "Adopt node"}
-            </Button>
-          )}
+          {(() => {
+            if (established) {
+              return (
+                <p className="font-mono text-sm text-success" role="status">
+                  {nodeName || "The node"} is established and linked to the fleet.
+                </p>
+              );
+            }
+            if (awaitingCert) {
+              return (
+                <p className="font-mono text-sm text-success" role="status">
+                  {nodeName || "The node"} is provisioned and awaiting a parent-signed certificate.
+                  Complete it from Enrollment (create a subordinate enrollment with parent{" "}
+                  {parentName || "the selected CA"}).
+                </p>
+              );
+            }
+            return (
+              <Button
+                disabled={pending || !nodeName.trim() || (isSubordinate && !parentAnchor)}
+                onClick={() => void runAdopt()}
+                size="sm"
+              >
+                {pending ? "Adopting…" : "Adopt node"}
+              </Button>
+            );
+          })()}
         </div>
       ) : null}
 
