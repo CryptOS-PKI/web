@@ -64,6 +64,31 @@ export const previewAdoption = async (endpoint: string): Promise<AdoptionPreview
   return { certSha256: response.certSha256, subject: response.subject };
 };
 
+// firstPemBlock returns the first PEM CERTIFICATE block of a chain (leaf-first),
+// or "" when none is present. A subordinate's parent anchor must be exactly one
+// certificate -- the parent's own CA cert -- so from a parent's identity chain
+// (which for an intermediate is [self, ..root]) we take the first block.
+const firstPemBlock = (chainPem: string): string => {
+  const match = chainPem.match(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/);
+  return match ? `${match[0]}\n` : "";
+};
+
+// fetchParentAnchor loads the chosen parent node's own CA certificate (PEM) to
+// embed as pki.parent.ca_cert_pem when adopting a subordinate: the child pins
+// this anchor and later verifies the parent-signed chain against it. `mock`
+// returns a canned block so the wizard is exercisable offline.
+export const fetchParentAnchor = async (nodeName: string): Promise<string> => {
+  if (fleetMode() === "mock") {
+    return `-----BEGIN CERTIFICATE-----\nMOCK-PARENT-ANCHOR (${nodeName})\n-----END CERTIFICATE-----\n`;
+  }
+  const response = await fleetClient().getNode({ name: nodeName });
+  const anchor = firstPemBlock(response.node?.identity?.chainPem ?? "");
+  if (!anchor) {
+    throw new Error(`Parent ${nodeName} has no certificate to anchor to yet.`);
+  }
+  return anchor;
+};
+
 // adoptNode drives the orchestrated adoption and yields each streamed phase.
 // It is an async generator so the wizard can render progress as it arrives.
 // In `mock` mode it walks a scripted sequence of phases (no live stream) so the
@@ -85,13 +110,30 @@ export async function* adoptNode(
   }
 
   if (fleetMode() === "mock") {
-    const scripted: AdoptPhase[] = [
+    // A subordinate skips the ceremony and ends awaiting a parent-signed cert;
+    // a root self-signs via the ceremony and reaches established. Keep the mock
+    // script coherent with the role so the offline demo matches the live flow.
+    const kind = config.role?.kind ?? "";
+    const subordinate = kind !== "" && kind !== "root";
+    const common: AdoptPhase[] = [
       { detail: "Applying the initial machine config.", done: false, phase: "applying-config" },
       { detail: "Installing the CryptOS runtime.", done: false, phase: "installing" },
       { detail: "Waiting for the node to reboot.", done: false, phase: "awaiting-reboot" },
-      { detail: "Running the enrollment ceremony.", done: false, phase: "ceremony" },
-      { detail: "Node established and linked to the fleet.", done: true, phase: "established" },
     ];
+    const scripted: AdoptPhase[] = subordinate
+      ? [
+          ...common,
+          {
+            detail: "Subordinate provisioned; awaiting a parent-signed certificate.",
+            done: true,
+            phase: "awaiting-certificate",
+          },
+        ]
+      : [
+          ...common,
+          { detail: "Running the enrollment ceremony.", done: false, phase: "ceremony" },
+          { detail: "Node established and linked to the fleet.", done: true, phase: "established" },
+        ];
     for (const step of scripted) {
       // A short delay makes the mock progress visibly step through phases.
       await new Promise((resolve) => setTimeout(resolve, 150));
