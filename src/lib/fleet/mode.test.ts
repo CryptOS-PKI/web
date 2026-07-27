@@ -27,13 +27,18 @@ afterEach(() => {
 });
 
 describe("fleetMode", () => {
-  it("defaults to mock when unset", () => {
+  it("defaults to live when unset", () => {
     import.meta.env.VITE_FLEET_MODE = undefined;
-    expect(fleetMode()).toBe("mock");
+    expect(fleetMode()).toBe("live");
   });
 
-  it("returns mock for an unrecognized value", () => {
+  it("returns live for an unrecognized value", () => {
     import.meta.env.VITE_FLEET_MODE = "bogus";
+    expect(fleetMode()).toBe("live");
+  });
+
+  it("returns mock only when explicitly set", () => {
+    import.meta.env.VITE_FLEET_MODE = "mock";
     expect(fleetMode()).toBe("mock");
   });
 

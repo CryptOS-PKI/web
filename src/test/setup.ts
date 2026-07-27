@@ -19,6 +19,11 @@ limitations under the License.
 import "reflect-metadata";
 import "@testing-library/jest-dom/vitest";
 
+// The app now defaults to the live data source (X1 cutover). The suite exercises
+// the mock fixtures, so pin the data-source seam to mock for tests; live-path
+// tests override it explicitly via vi.mock("@/lib/fleet/mode").
+import.meta.env.VITE_FLEET_MODE = "mock";
+
 // jsdom has no matchMedia. Stub it as reduce=true so the topology's staged
 // reveal takes its instant path in tests (no rAF), keeping focus behavior
 // deterministic.
