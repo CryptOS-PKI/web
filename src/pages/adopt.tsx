@@ -19,6 +19,8 @@ limitations under the License.
 import { create } from "@bufbuild/protobuf";
 import { useState } from "react";
 
+import type { InstallDisk } from "@/gen/fleet/cryptos/v1/node_pb";
+
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/auth";
 import { MachineConfigSchema } from "@/gen/fleet/cryptos/v1/config_pb";
@@ -27,6 +29,8 @@ import {
   adoptNode,
   type AdoptPhase,
   fetchParentAnchor,
+  formatDiskSize,
+  listInstallDisks,
   previewAdoption,
 } from "@/lib/adopt";
 import { useNodes } from "@/lib/nodes";
@@ -118,9 +122,14 @@ export const AdoptPage = () => {
   const [gateway, setGateway] = useState("");
   const [rootCn, setRootCn] = useState("");
   const [validityYears, setValidityYears] = useState("10");
-  const [disk, setDisk] = useState("/dev/sda");
+  const [disk, setDisk] = useState("");
   const [crl, setCrl] = useState("");
   const [tier, setTier] = useState(tiers[0]);
+
+  // Install disks discovered on the maintenance node (fetched on fingerprint
+  // confirm), so the operator picks a real device instead of guessing a path.
+  const [disks, setDisks] = useState<InstallDisk[]>([]);
+  const [disksBusy, setDisksBusy] = useState(false);
 
   // Subordinate (intermediate/issuing) adoption: the operator picks a parent
   // node and we embed its CA certificate as the trust anchor. Established nodes
@@ -147,6 +156,25 @@ export const AdoptPage = () => {
       setError(error_ instanceof Error ? error_.message : "Could not load the parent certificate");
     } finally {
       setParentBusy(false);
+    }
+  };
+
+  // confirmPin pins the fingerprint and discovers the node's install disks so
+  // the operator picks a real device. Disk discovery is best-effort: on failure
+  // the form falls back to manual entry.
+  const confirmPin = async (pin: string) => {
+    setConfirmedPin(pin);
+    setDisksBusy(true);
+    try {
+      const found = await listInstallDisks(endpoint, pin);
+      setDisks(found);
+      if (found.length > 0) {
+        setDisk(found[0].path);
+      }
+    } catch {
+      setDisks([]);
+    } finally {
+      setDisksBusy(false);
     }
   };
 
@@ -272,7 +300,7 @@ export const AdoptPage = () => {
               <span className="text-muted-foreground">sha256 </span>
               {preview.certSha256}
             </p>
-            <Button onClick={() => setConfirmedPin(preview.certSha256)} size="sm">
+            <Button onClick={() => void confirmPin(preview.certSha256)} size="sm">
               Confirm fingerprint
             </Button>
           </div>
@@ -387,9 +415,28 @@ export const AdoptPage = () => {
               value={gateway}
             />
           </label>
+          {/* The install disk is discovered from the node so the operator picks
+              a real device; manual entry remains as a fallback when discovery
+              returns nothing. */}
           <label className="block space-y-1">
             <span className={label}>Install disk</span>
-            <input className={field} onChange={(e) => setDisk(e.target.value)} value={disk} />
+            {disks.length > 0 ? (
+              <select className={field} onChange={(e) => setDisk(e.target.value)} value={disk}>
+                {disks.map((d) => (
+                  <option key={d.path} value={d.path}>
+                    {d.path} — {formatDiskSize(d.sizeBytes)}
+                    {d.model ? ` — ${d.model}` : ""}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                className={field}
+                onChange={(e) => setDisk(e.target.value)}
+                placeholder={disksBusy ? "Discovering disks…" : "/dev/nvme0n1"}
+                value={disk}
+              />
+            )}
           </label>
           {/* Revocation is a CA responsibility, so it is offered only for a root
               at adopt time. A subordinate is not a CA until its enrollment is
@@ -445,7 +492,9 @@ export const AdoptPage = () => {
             }
             return (
               <Button
-                disabled={pending || !nodeName.trim() || (isSubordinate && !parentAnchor)}
+                disabled={
+                  pending || !nodeName.trim() || !disk.trim() || (isSubordinate && !parentAnchor)
+                }
                 onClick={() => void runAdopt()}
                 size="sm"
               >

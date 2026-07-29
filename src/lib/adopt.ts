@@ -16,7 +16,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+import { create } from "@bufbuild/protobuf";
+
 import type { MachineConfig } from "@/gen/fleet/cryptos/v1/config_pb";
+import { type InstallDisk, InstallDiskSchema } from "@/gen/fleet/cryptos/v1/node_pb";
 import { fleetClient } from "@/lib/fleet/client";
 import { fleetMode } from "@/lib/fleet/mode";
 
@@ -87,6 +90,45 @@ export const fetchParentAnchor = async (nodeName: string): Promise<string> => {
     throw new Error(`Parent ${nodeName} has no certificate to anchor to yet.`);
   }
   return anchor;
+};
+
+// listInstallDisks returns the candidate install disks a maintenance node
+// reports, so the adopt wizard can offer real devices instead of asking the
+// operator to guess a device path. `mock` returns a canned list for offline UI
+// work. Pinned to the fingerprint the operator confirmed via previewAdoption.
+export const listInstallDisks = async (
+  endpoint: string,
+  pinnedCertSha256: string,
+): Promise<InstallDisk[]> => {
+  if (fleetMode() === "mock") {
+    return [
+      create(InstallDiskSchema, {
+        path: "/dev/nvme0n1",
+        sizeBytes: 512n * 1024n * 1024n * 1024n,
+        model: "Mock NVMe SSD",
+        rotational: false,
+      }),
+      create(InstallDiskSchema, {
+        path: "/dev/sda",
+        sizeBytes: 1024n * 1024n * 1024n * 1024n,
+        model: "Mock SATA disk",
+        rotational: true,
+      }),
+    ];
+  }
+  const response = await fleetClient().listInstallDisks({
+    endpoint: endpoint.trim(),
+    pinnedCertSha256,
+  });
+  return response.disks;
+};
+
+// formatDiskSize renders a disk's byte size as a human GiB/TiB label for the
+// adopt dropdown.
+export const formatDiskSize = (bytes: bigint): string => {
+  const gib = Number(bytes) / (1024 * 1024 * 1024);
+  if (gib >= 1024) return `${(gib / 1024).toFixed(1)} TiB`;
+  return `${gib.toFixed(0)} GiB`;
 };
 
 // adoptNode drives the orchestrated adoption and yields each streamed phase.
