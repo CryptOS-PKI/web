@@ -26,8 +26,12 @@ vi.mock("@/context/auth", () => ({ useAuth: () => useAuth() }));
 
 const previewAdoption = vi.fn();
 const adoptNode = vi.fn();
+const listInstallDisks = vi.fn();
 vi.mock("@/lib/adopt", () => ({
   adoptNode: (...a: unknown[]) => adoptNode(...a),
+  fetchParentAnchor: vi.fn(),
+  formatDiskSize: (b: bigint) => `${b}`,
+  listInstallDisks: (...a: unknown[]) => listInstallDisks(...a),
   previewAdoption: (...a: unknown[]) => previewAdoption(...a),
 }));
 
@@ -59,6 +63,8 @@ describe("AdoptPage", () => {
   it("streams phase progress and shows the node established", async () => {
     useAuth.mockReturnValue({ operator: { level: "admin" } });
     previewAdoption.mockResolvedValue({ certSha256: "AB:CD:EF", subject: "CN=maintenance" });
+    // No discovered disks here, so the form falls back to the manual disk field.
+    listInstallDisks.mockResolvedValue([]);
     adoptNode.mockReturnValue(
       (async function* () {
         yield { detail: "Applying.", done: false, phase: "applying-config" };
@@ -73,6 +79,7 @@ describe("AdoptPage", () => {
     fireEvent.click(screen.getByRole("button", { name: /confirm fingerprint/i }));
 
     fireEvent.change(screen.getByLabelText(/node name/i), { target: { value: "acme-edge-07" } });
+    fireEvent.change(screen.getByLabelText(/install disk/i), { target: { value: "/dev/nvme0n1" } });
     fireEvent.click(screen.getByRole("button", { name: /adopt node/i }));
 
     await waitFor(() =>
