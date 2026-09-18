@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useSyncExternalStore } from "react";
 
 import { recordAudit } from "@/lib/audit";
 import { fleetClient } from "@/lib/fleet/client";
@@ -270,6 +270,31 @@ export const useCerts = (nodeName: string): Cert[] => {
 };
 
 export const allCerts = (): Cert[] => certs;
+
+// useCertCounts is the per-node issued/revoked tally, derived from the
+// certificates the manager already returns.
+//
+// NodeSummary does not carry these numbers, so fromSummary defaults them to 0
+// and every node in a live fleet rendered "0 issued" however many it had
+// (#85). ListCertificates is correct, so the counts are derived from it rather
+// than guessed -- and subscribing through useAllCerts means they arrive and
+// re-render rather than depending on whichever page fetched first.
+export const useCertCounts = (): Map<string, { issued: number; revoked: number }> => {
+  const all = useAllCerts();
+
+  return useMemo(() => {
+    const counts = new Map<string, { issued: number; revoked: number }>();
+    for (const c of all) {
+      if (!c.issuerNodeName) continue;
+      const entry = counts.get(c.issuerNodeName) ?? { issued: 0, revoked: 0 };
+      entry.issued += 1;
+      if (c.status === "REVOKED") entry.revoked += 1;
+      counts.set(c.issuerNodeName, entry);
+    }
+
+    return counts;
+  }, [all]);
+};
 export const useAllCerts = (): Cert[] => {
   const mode = fleetMode();
 
