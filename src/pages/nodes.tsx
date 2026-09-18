@@ -24,7 +24,7 @@ import type { IdentityState, Node } from "@/lib/mock";
 
 import { DataTable } from "@/components/data-table/data-table";
 import { IdentityBadge } from "@/components/identity-badge";
-import { certsFor } from "@/lib/certs";
+import { certsFor, useAllCerts } from "@/lib/certs";
 import { identityStateLabels, roleLabels } from "@/lib/mock";
 import { useNodes } from "@/lib/nodes";
 
@@ -56,6 +56,10 @@ const nodeColumns: ColumnDef<Node, unknown>[] = [
 // Operational nodes only -- the Root CA has its own surface at /root.
 export const NodesPage = () => {
   const all = useNodes();
+  // Subscribe to the certificates too: the Certs column reads the module
+  // store synchronously, which on a direct load of this page in live mode was
+  // empty and showed 0 for every node (#85).
+  useAllCerts();
   const nodes = all.filter((n) => n.role !== "root");
   const roots = all.length - nodes.length;
 

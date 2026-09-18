@@ -24,7 +24,7 @@ import type { IdentityState, Node } from "@/lib/mock";
 
 import { DataTable } from "@/components/data-table/data-table";
 import { IdentityBadge } from "@/components/identity-badge";
-import { certsFor } from "@/lib/certs";
+import { certsFor, useAllCerts } from "@/lib/certs";
 import { identityStateLabels } from "@/lib/mock";
 import { useNodes } from "@/lib/nodes";
 
@@ -55,6 +55,9 @@ const rootColumns: ColumnDef<Node, unknown>[] = [
 // The fleet's root CAs. Each root is an independent trust anchor the manager
 // reaches over its own mTLS identity; a row opens that root's config + ceremony.
 export const RootPage = () => {
+  // Subscribe to the certificates: the Certs column reads the module store
+  // synchronously, which was empty on a direct load in live mode (#85).
+  useAllCerts();
   const roots = useNodes().filter((n) => n.role === "root");
 
   return (

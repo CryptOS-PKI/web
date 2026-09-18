@@ -19,6 +19,7 @@ limitations under the License.
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 
 import { RootMark } from "@/components/root-mark";
+import { useCertCounts } from "@/lib/certs";
 import { type IdentityState } from "@/lib/mock";
 import { useNodes } from "@/lib/nodes";
 import { computeTreeLayout } from "@/lib/topology-layout";
@@ -104,7 +105,20 @@ export const FleetTopology = ({
   // Per-node collapse. Default: nothing collapsed (expand all). Collapsing a
   // node hides its subtree and re-packs the tree; expand at will.
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
-  const allNodes = useNodes();
+  const liveNodes = useNodes();
+  // NodeSummary carries no issued/revoked counts, so a live node arrives with
+  // them defaulted to 0. Derive them from the certificates instead, which the
+  // manager does report correctly (#85).
+  const certCounts = useCertCounts();
+  const allNodes = useMemo(
+    () =>
+      liveNodes.map((n) => {
+        const counts = certCounts.get(n.name);
+
+        return counts ? { ...n, issued: counts.issued, revoked: counts.revoked } : n;
+      }),
+    [liveNodes, certCounts],
+  );
   const layout = useMemo(() => computeTreeLayout(allNodes, collapsed), [allNodes, collapsed]);
   const toggleCollapse = (name: string): void => {
     setCollapsed((prev) => {
