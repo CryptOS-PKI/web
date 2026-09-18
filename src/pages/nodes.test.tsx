@@ -49,3 +49,18 @@ describe("NodesPage", () => {
     expect(screen.queryByText("acme-intermediate-01")).not.toBeInTheDocument();
   });
 });
+
+// Silently omitting roots made a two-node fleet look like a one-node fleet
+// (#86). The page now says where they went.
+describe("NodesPage hidden roots", () => {
+  it("says roots are listed under Root and links there", () => {
+    render(
+      <MemoryRouter>
+        <NodesPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText(/listed under/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^Root$/ })).toHaveAttribute("href", "/root");
+  });
+});

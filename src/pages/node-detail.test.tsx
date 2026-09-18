@@ -21,7 +21,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { __resetCerts } from "@/lib/certs";
-import { __resetNodes } from "@/lib/nodes";
+import { __resetNodes, nodesList } from "@/lib/nodes";
 import { NodeDetailPage } from "@/pages/node-detail";
 
 const renderAt = (path: string) =>
@@ -47,5 +47,30 @@ describe("NodeDetailPage trust chain", () => {
       "/nodes/acme-root-01",
     );
     expect(within(chain).getByRole("link", { name: "acme-intermediate-01" })).toBeInTheDocument();
+  });
+});
+
+// A root has no page under /nodes -- that route used to render an empty one
+// (#86). It now sends the operator to the page that actually has the root.
+describe("NodeDetailPage root deep link", () => {
+  beforeEach(() => {
+    __resetNodes();
+    __resetCerts();
+  });
+
+  it("redirects a root to its own page", () => {
+    const root = nodesList().find((n) => n.role === "root");
+    if (!root) throw new Error("fixture has no root node");
+
+    render(
+      <MemoryRouter initialEntries={[`/nodes/${root.name}`]}>
+        <Routes>
+          <Route element={<NodeDetailPage />} path="/nodes/:name" />
+          <Route element={<div>root surface for {root.name}</div>} path="/root/:name" />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText(`root surface for ${root.name}`)).toBeInTheDocument();
   });
 });
