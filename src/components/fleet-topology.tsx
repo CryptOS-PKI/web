@@ -329,7 +329,17 @@ export const FleetTopology = ({
     svgRef.current?.releasePointerCapture?.(e.pointerId);
   };
 
+  // Zoom only on an explicit gesture. Claiming every wheel event merely
+  // because the pointer is over the map meant scrolling the page past the
+  // topology zoomed it out instead (#84). ctrl/cmd + wheel is the convention
+  // from Figma and embedded maps, and trackpad pinch arrives as a wheel event
+  // with ctrlKey already set, so pinch keeps working through the same check.
   const onWheel = (e: React.WheelEvent<SVGSVGElement>) => {
+    if (!e.ctrlKey && !e.metaKey) return;
+    // Only now is the gesture ours, so only now suppress the browser's own
+    // handling of it.
+    e.preventDefault();
+
     const rect = svgRef.current?.getBoundingClientRect();
     if (!rect) return;
     const { rx, ry } = vbRatio();

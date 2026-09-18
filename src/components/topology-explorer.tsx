@@ -83,7 +83,7 @@ export const TopologyExplorer = ({
 
   const action = singlePath
     ? "click a node to trace its path to the Root"
-    : "click a node to center it · drag to pan · scroll to zoom";
+    : "click a node to center it · drag to pan · ctrl+scroll to zoom";
 
   // Clicking a node selects it (detail panel) and centers on it. The Root is
   // not a focus target, and clicking the already-focused node toggles back —
