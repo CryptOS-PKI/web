@@ -23,6 +23,21 @@ import { describe, expect, it } from "vitest";
 import { TopNav } from "@/components/layout/top-nav";
 
 describe("TopNav", () => {
+  // Root before Nodes: that is the order the hierarchy reads, and /nodes
+  // excludes roots, so meeting Nodes first and finding the root missing is
+  // what made this confusing (#86).
+  it("orders Root before Nodes", () => {
+    render(
+      <MemoryRouter>
+        <TopNav />
+      </MemoryRouter>,
+    );
+    const hrefs = screen.getAllByRole("link").map((a) => a.getAttribute("href"));
+    expect(hrefs.indexOf("/root")).toBeGreaterThan(-1);
+    expect(hrefs.indexOf("/root")).toBeLessThan(hrefs.indexOf("/nodes"));
+    expect(hrefs.indexOf("/fleet")).toBeLessThan(hrefs.indexOf("/root"));
+  });
+
   it("renders the primary nav links", () => {
     render(
       <MemoryRouter>

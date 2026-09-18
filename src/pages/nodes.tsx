@@ -55,13 +55,28 @@ const nodeColumns: ColumnDef<Node, unknown>[] = [
 
 // Operational nodes only -- the Root CA has its own surface at /root.
 export const NodesPage = () => {
-  const nodes = useNodes().filter((n) => n.role !== "root");
+  const all = useNodes();
+  const nodes = all.filter((n) => n.role !== "root");
+  const roots = all.length - nodes.length;
 
   return (
     <section className="space-y-5">
       <div className="space-y-1">
         <h1 className="text-2xl font-bold tracking-tight">Nodes</h1>
-        <p className="text-sm text-muted-foreground">{nodes.length} operational nodes</p>
+        <p className="text-sm text-muted-foreground">
+          {nodes.length} operational nodes
+          {/* Say what is being withheld. Silently omitting roots made a
+              two-node fleet look like a one-node fleet (#86). */}
+          {roots > 0 ? (
+            <>
+              {" · "}
+              {roots} {roots === 1 ? "root is" : "roots are"} listed under{" "}
+              <Link className="text-primary hover:underline" to="/root">
+                Root
+              </Link>
+            </>
+          ) : null}
+        </p>
       </div>
 
       <DataTable
