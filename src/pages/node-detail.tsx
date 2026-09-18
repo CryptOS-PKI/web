@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import { Link, useParams } from "react-router-dom";
+import { Link, Navigate, useParams } from "react-router-dom";
 
 import { CertInventory } from "@/components/cert-inventory";
 import { NodeDetailPanel } from "@/components/node-detail-panel";
@@ -34,6 +34,13 @@ const stateTone: Record<IdentityState, string> = {
 export const NodeDetailPage = () => {
   const { name } = useParams<{ name: string }>();
   const node = useNode(name);
+
+  // /nodes excludes roots, so a root's detail lives at /root/<name>. Landing
+  // here from a hand-built link, a shared URL or an audit targetPath used to
+  // render a page with nothing on it (#86); send it where the data is.
+  if (node?.role === "root") {
+    return <Navigate replace to={`/root/${node.name}`} />;
+  }
 
   if (!node) {
     return (
