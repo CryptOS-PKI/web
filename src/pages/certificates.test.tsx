@@ -20,8 +20,8 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { __resetCerts, allCerts } from "@/lib/certs";
-import { __resetNodes } from "@/lib/nodes";
+import { __resetCerts, allCerts, canIssue } from "@/lib/certs";
+import { __resetNodes, nodesList } from "@/lib/nodes";
 import { CertificatesPage } from "@/pages/certificates";
 
 describe("CertificatesPage", () => {
@@ -70,5 +70,40 @@ describe("CertificatesPage", () => {
     });
     expect(screen.getByRole("link", { name: "ldap-a.acme.example" })).toBeInTheDocument();
     expect(screen.queryByText("old.acme.example")).not.toBeInTheDocument();
+  });
+});
+
+// Issuing required knowing to go to a node page first; there was no way in
+// from the certificate list (#88).
+describe("CertificatesPage issue entry point", () => {
+  it("offers an issuing node and links to its issue page", () => {
+    render(
+      <MemoryRouter>
+        <CertificatesPage />
+      </MemoryRouter>,
+    );
+
+    const select = screen.getByLabelText(/issuing node/i);
+    const node = nodesList().find((n) => canIssue(n).length > 0);
+    if (!node) throw new Error("fixture has no issuing node");
+
+    fireEvent.change(select, { target: { value: node.name } });
+
+    expect(screen.getByRole("link", { name: /issue certificate/i })).toHaveAttribute(
+      "href",
+      `/nodes/${node.name}/issue`,
+    );
+  });
+
+  // Until a node is chosen there is nowhere to go, so the action must not
+  // pretend to be a link.
+  it("offers no link until a node is chosen", () => {
+    render(
+      <MemoryRouter>
+        <CertificatesPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByRole("link", { name: /issue certificate/i })).not.toBeInTheDocument();
   });
 });
