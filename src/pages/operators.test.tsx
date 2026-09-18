@@ -80,3 +80,28 @@ describe("OperatorsPage", () => {
     expect(screen.queryByRole("button", { name: /revoke/i })).not.toBeInTheDocument();
   });
 });
+
+// "No operator credentials" read as "this fleet has no operators" while the
+// reader was signed in as one, on a deployment whose credential was minted
+// outside the manager (#85).
+describe("OperatorsPage empty state", () => {
+  it("explains what it can and cannot list, and shows who you are", async () => {
+    const { listOperatorCredentials } = await import("@/lib/operators");
+    vi.mocked(listOperatorCredentials).mockResolvedValueOnce([]);
+    useAuth.mockReturnValue({
+      operator: { commonName: "shane@interborough.org", level: "admin", serial: "3D:DB" },
+    });
+
+    render(<OperatorsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/has not issued any operator credentials/i)).toBeInTheDocument();
+    });
+    // The distinction that matters: externally minted credentials cannot be
+    // listed, which is different from there being none.
+    expect(screen.getByText(/minted outside it/i)).toBeInTheDocument();
+    // And the reader is an operator, so saying otherwise is plainly wrong.
+    expect(screen.getByText(/shane@interborough.org/)).toBeInTheDocument();
+    expect(screen.getByText(/operator_ca_node/)).toBeInTheDocument();
+  });
+});

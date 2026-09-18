@@ -100,8 +100,35 @@ export const OperatorsPage = () => {
           <tbody>
             {rows.length === 0 ? (
               <tr>
+                {/* "No operator credentials" read as "this fleet has no
+                    operators" while the reader was signed in as one (#85). The
+                    manager lists only what it issued itself, so a credential
+                    minted outside it is invisible here and cannot be
+                    enumerated. */}
                 <td className="px-3 py-6 text-center text-sm text-muted-foreground" colSpan={6}>
-                  No operator credentials.
+                  <p className="text-foreground">
+                    The manager has not issued any operator credentials.
+                  </p>
+                  <p className="mx-auto mt-1 max-w-xl">
+                    This lists credentials the manager issued. One minted outside it — with OpenSSL
+                    against the operator CA, which is the documented path for a fleet with no spare
+                    node — cannot be listed or revoked here, because the manager has no record of
+                    it.
+                  </p>
+                  {operator ? (
+                    <p className="mx-auto mt-2 max-w-xl font-mono text-xs">
+                      You are signed in as{" "}
+                      <span className="text-foreground">{operator.commonName}</span> (
+                      {operator.level}), serial{" "}
+                      <span className="text-foreground">{operator.serial}</span>
+                    </p>
+                  ) : null}
+                  <p className="mx-auto mt-2 max-w-xl">
+                    Issuing and revoking from here need an operator-CA node designated with{" "}
+                    <span className="font-mono">operator_ca_node</span>. Without one the manager
+                    also enforces no operator-certificate revocation, so a revoked credential keeps
+                    working until it expires.
+                  </p>
                 </td>
               </tr>
             ) : (
