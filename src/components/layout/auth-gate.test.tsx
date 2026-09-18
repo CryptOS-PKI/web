@@ -82,7 +82,7 @@ describe("AuthGate", () => {
   // share one message. Telling someone to install a certificate when the
   // manager is simply unreachable wastes their time.
   it.each([
-    ["no-certificate" as const, /install an operator certificate/i],
+    ["no-certificate" as const, /^No operator certificate$/],
     ["not-authorized" as const, /certificate not authori[sz]ed/i],
     ["unavailable" as const, /could not be reached/i],
   ])("explains the %s denial", (reason, expected) => {
@@ -91,6 +91,23 @@ describe("AuthGate", () => {
 
     expect(screen.getByText(expected)).toBeInTheDocument();
     expect(screen.queryByText("fleet console")).not.toBeInTheDocument();
+  });
+
+  // The no-certificate case is the one an operator can act on, so it carries the
+  // install instructions; an outage is not their problem to fix (#81).
+  it("shows install instructions when no certificate was presented", () => {
+    authState = { login, operator: null, reason: "no-certificate", status: "denied" };
+    renderGate();
+
+    expect(screen.getByRole("heading", { name: /windows/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /firefox/i })).toBeInTheDocument();
+  });
+
+  it("does not offer install instructions for an outage", () => {
+    authState = { login, operator: null, reason: "unavailable", status: "denied" };
+    renderGate();
+
+    expect(screen.queryByRole("heading", { name: /windows/i })).not.toBeInTheDocument();
   });
 
   it("lets a denied operator try again", () => {
