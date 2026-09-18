@@ -110,12 +110,22 @@ export const ProtocolsPage = () => {
         </p>
       </div>
 
+      {/* The previous wording said ACME and EST ship "in a later release".
+          Both are shipped and served by the nodes -- RFC 8555 and RFC 7030 --
+          so the page was telling operators the protocols they had configured
+          did not exist (#84). */}
       <p
         className="max-w-3xl rounded-md border border-warning/40 bg-warning/5 p-3 text-sm text-muted-foreground"
         role="note"
       >
-        Enabling an adapter records intent only. The ACME, EST, SCEP, and Windows autoenrollment
-        services ship in a later release; an enabled adapter does not yet serve enrollment requests.
+        <span className="text-foreground">
+          ACME (RFC 8555) and EST (RFC 7030) are served by the nodes themselves
+        </span>
+        , configured per node under <span className="font-mono">pki.acme</span> and{" "}
+        <span className="font-mono">pki.est</span>. This page records the fleet&apos;s intent and
+        does not yet reflect what a node is actually serving, so check the node&apos;s own
+        configuration to confirm. SCEP and Windows autoenrollment are not implemented yet, and
+        enabling them here does nothing.
       </p>
 
       <DataTable
