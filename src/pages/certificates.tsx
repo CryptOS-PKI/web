@@ -18,10 +18,20 @@ limitations under the License.
 
 import type { ColumnDef } from "@tanstack/react-table";
 
+import { useState } from "react";
 import { Link } from "react-router-dom";
 
 import { DataTable } from "@/components/data-table/data-table";
-import { type Cert, daysUntilExpiry, expiryClass, renewCert, useAllCerts } from "@/lib/certs";
+import { Button } from "@/components/ui/button";
+import {
+  canIssue,
+  type Cert,
+  daysUntilExpiry,
+  expiryClass,
+  renewCert,
+  useAllCerts,
+} from "@/lib/certs";
+import { useNodes } from "@/lib/nodes";
 
 const TONE: Record<"expired" | "expiring" | "ok", string> = {
   expired: "text-destructive",
@@ -111,14 +121,46 @@ const certColumns: ColumnDef<Cert, unknown>[] = [
 
 export const CertificatesPage = () => {
   const certs = useAllCerts();
+  // Issuance happens on a node, so the entry point has to pick one. Listing
+  // only nodes that can actually issue avoids sending the operator to a page
+  // that immediately redirects them away (#88).
+  const issuers = useNodes().filter((n) => canIssue(n).length > 0);
+  const [issuer, setIssuer] = useState("");
 
   return (
     <section className="space-y-5">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight">Certificates</h1>
-        <p className="text-sm text-muted-foreground">
-          {certs.length} certificates across the fleet
-        </p>
+      <div className="flex items-end justify-between gap-4">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-bold tracking-tight">Certificates</h1>
+          <p className="text-sm text-muted-foreground">
+            {certs.length} certificates across the fleet
+          </p>
+        </div>
+
+        {issuers.length > 0 ? (
+          <div className="flex items-center gap-2">
+            <select
+              aria-label="Issuing node"
+              className="h-9 rounded-md border bg-background px-2 font-mono text-xs"
+              onChange={(e) => setIssuer(e.target.value)}
+              value={issuer}
+            >
+              <option value="">Select an issuing node</option>
+              {issuers.map((n) => (
+                <option key={n.name} value={n.name}>
+                  {n.name}
+                </option>
+              ))}
+            </select>
+            <Button asChild={issuer !== ""} disabled={issuer === ""} size="sm">
+              {issuer === "" ? (
+                <span>Issue certificate</span>
+              ) : (
+                <Link to={`/nodes/${issuer}/issue`}>Issue certificate</Link>
+              )}
+            </Button>
+          </div>
+        ) : null}
       </div>
 
       <DataTable
