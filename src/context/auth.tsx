@@ -82,16 +82,44 @@ const DEV_OPERATOR: Operator = {
 
 const toLevel = (s: string): OperatorLevel => (s === "admin" || s === "operator" ? s : "viewer");
 
+// webSurfaceReachable asks the origin for something that needs no client
+// certificate. The manager serves the web surface anonymously, so a successful
+// answer means the service is up and any failure on the API was the client's
+// certificate rather than an outage.
+const webSurfaceReachable = async (): Promise<boolean> => {
+  try {
+    const resp = await fetch(`${globalThis.location.origin}/`, {
+      cache: "no-store",
+      method: "HEAD",
+    });
+
+    return resp.ok;
+  } catch {
+    return false;
+  }
+};
+
 // The manager answers 401 when the handshake presented no certificate and 403
 // when it presented one that is not an authorized operator, which Connect
 // surfaces as these codes.
-const toReason = (err: unknown): DenialReason => {
+//
+// Code.Unknown is the awkward one and the common one (#81). A browser holding no
+// usable certificate -- or an operator who cancels the certificate prompt --
+// aborts the connection with ERR_BAD_SSL_CLIENT_AUTH_CERT, fetch rejects with a
+// TypeError, and Connect reports that as Unknown. It is indistinguishable from
+// a dead service by the error alone, so ask the origin: the page in front of the
+// operator was served anonymously, so if it answers, the service is up and the
+// certificate is what is missing.
+const toReason = async (err: unknown): Promise<DenialReason> => {
   switch (ConnectError.from(err).code) {
     case Code.PermissionDenied: {
       return "not-authorized";
     }
     case Code.Unauthenticated: {
       return "no-certificate";
+    }
+    case Code.Unknown: {
+      return (await webSurfaceReachable()) ? "no-certificate" : "unavailable";
     }
     default: {
       return "unavailable";
@@ -131,9 +159,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setOperator({ commonName: op.cn, level: toLevel(op.level), serial: op.serial });
         setStatus("authenticated");
       })
-      .catch((error: unknown) => {
+      .catch(async (error: unknown) => {
+        const denial = await toReason(error);
         setOperator(null);
-        setReason(toReason(error));
+        setReason(denial);
         setStatus("denied");
       });
   }, []);

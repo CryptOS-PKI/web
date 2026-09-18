@@ -20,6 +20,7 @@ import type { ReactNode } from "react";
 
 import type { DenialReason } from "@/context/auth";
 
+import { CertificateHelp } from "@/components/layout/certificate-help";
 import { Wordmark } from "@/components/layout/wordmark";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/auth";
@@ -37,8 +38,9 @@ import { useAuth } from "@/context/auth";
 // wastes their time.
 const denial: Record<DenialReason, { detail: string; title: string }> = {
   "no-certificate": {
-    detail: "Install an operator certificate issued by this fleet's PKI, then log in again.",
-    title: "No operator certificate presented",
+    detail:
+      "Your browser did not present one, so there is nothing to log in with. The service is running -- this is a certificate you need to install, not an outage.",
+    title: "No operator certificate",
   },
   "not-authorized": {
     detail:
@@ -86,6 +88,9 @@ export const AuthGate = ({ children }: { children: ReactNode }) => {
           <span className="text-primary">{title}</span>
           <span>{detail}</span>
         </div>
+        {/* Only the missing-certificate case is something the operator can act
+            on here, so it is the only one that carries instructions. */}
+        {reason === "no-certificate" ? <CertificateHelp /> : null}
         <Button onClick={login} type="button" variant="outline">
           Try again
         </Button>
