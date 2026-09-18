@@ -24,6 +24,9 @@ import { AuthProvider, useAuth } from "@/context/auth";
 
 const whoAmI = vi.fn();
 const fleetMode = vi.fn(() => "live");
+// The reachability probe goes through fetch rather than the Connect client, so
+// it can answer without a client certificate.
+const probe = vi.fn();
 vi.mock("@/lib/fleet/client", () => ({ fleetClient: () => ({ whoAmI }) }));
 vi.mock("@/lib/fleet/mode", () => ({ fleetMode: () => fleetMode() }));
 
@@ -53,7 +56,9 @@ const state = () => screen.getByTestId("state").textContent;
 describe("AuthProvider", () => {
   beforeEach(() => {
     whoAmI.mockReset();
+    probe.mockReset();
     fleetMode.mockReturnValue("live");
+    vi.stubGlobal("fetch", probe);
   });
 
   // The point of #68: arriving at the page must not sign you in, even holding a
@@ -119,10 +124,48 @@ describe("AuthProvider", () => {
     await waitFor(() => expect(state()).toBe("denied:none:not-authorized"));
   });
 
-  // A transport failure is not an authorization answer, and saying "install a
-  // certificate" would send the operator down the wrong path.
-  it("reports unavailable when the API cannot be reached", async () => {
+  // A server that answers Unavailable is a genuine outage.
+  it("reports unavailable when the API answers unavailable", async () => {
     whoAmI.mockRejectedValue(new ConnectError("down", Code.Unavailable));
+    renderProbe();
+
+    screen.getByRole("button", { name: /sign in/i }).click();
+
+    await waitFor(() => expect(state()).toBe("denied:none:unavailable"));
+  });
+
+  // The case from the field: a browser with no usable certificate, or an
+  // operator who cancels Chrome's certificate prompt, aborts the connection.
+  // fetch rejects with a TypeError, which Connect reports as Unknown. Since the
+  // page the operator is reading was served anonymously by the same origin, a
+  // reachable web surface means the service is up and the certificate is the
+  // problem -- reporting an outage sends them to debug the wrong thing (#81).
+  it("reports a missing certificate when the transport fails but the site is reachable", async () => {
+    whoAmI.mockRejectedValue(new ConnectError("Failed to fetch", Code.Unknown));
+    probe.mockResolvedValue({ ok: true } as Response);
+    renderProbe();
+
+    screen.getByRole("button", { name: /sign in/i }).click();
+
+    await waitFor(() => expect(state()).toBe("denied:none:no-certificate"));
+    expect(probe).toHaveBeenCalled();
+  });
+
+  it("reports unavailable when the transport fails and the site is gone too", async () => {
+    whoAmI.mockRejectedValue(new ConnectError("Failed to fetch", Code.Unknown));
+    probe.mockRejectedValue(new TypeError("Failed to fetch"));
+    renderProbe();
+
+    screen.getByRole("button", { name: /sign in/i }).click();
+
+    await waitFor(() => expect(state()).toBe("denied:none:unavailable"));
+  });
+
+  // A reachability probe that answers with an error status is not a working
+  // site, so it must not be read as one.
+  it("reports unavailable when the reachability probe returns an error status", async () => {
+    whoAmI.mockRejectedValue(new ConnectError("Failed to fetch", Code.Unknown));
+    probe.mockResolvedValue({ ok: false } as Response);
     renderProbe();
 
     screen.getByRole("button", { name: /sign in/i }).click();
