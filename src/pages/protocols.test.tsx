@@ -44,13 +44,35 @@ describe("ProtocolsPage", () => {
     expect(screen.getByRole("link", { name: /ACME/ })).toHaveAttribute("href", "/protocols/acme");
   });
 
-  it("shows the honest engine-pending note", () => {
+  // The note used to say ACME and EST ship "in a later release", which stopped
+  // being true once the nodes shipped RFC 8555 and RFC 7030 -- it told operators
+  // the protocols they had configured did not exist (#84).
+  it("credits the protocols the nodes actually serve", () => {
     render(
       <MemoryRouter>
         <ProtocolsPage />
       </MemoryRouter>,
     );
-    expect(screen.getByRole("note")).toHaveTextContent(/does not yet serve enrollment requests/i);
+
+    const note = screen.getByRole("note");
+    expect(note).toHaveTextContent(/served by the\s+nodes themselves/i);
+    expect(note).not.toHaveTextContent(
+      /ACME, EST, SCEP, and Windows autoenrollment services ship/i,
+    );
+  });
+
+  // SCEP and Windows autoenrollment genuinely are not implemented, and saying
+  // so is the half of the old note that was correct.
+  it("still says SCEP and Windows autoenrollment are not implemented", () => {
+    render(
+      <MemoryRouter>
+        <ProtocolsPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("note")).toHaveTextContent(
+      /SCEP and Windows autoenrollment are not implemented/i,
+    );
   });
 
   it("toggles an adapter from the row", async () => {

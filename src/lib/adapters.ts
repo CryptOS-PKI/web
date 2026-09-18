@@ -24,9 +24,17 @@ import { fleetMode } from "@/lib/fleet/mode";
 
 import type { EnrollmentAdapter as ProtoEnrollmentAdapter } from "@/gen/fleet/cryptos/fleet/v1/fleet_pb";
 
-// UI-defined config for an enrollment protocol adapter (mock). The real
-// protocol servers (ACME directory, XCEP/WSTEP, SCEP/EST) are roadmap E; this
-// is the config surface that binds each protocol to a certificate profile.
+// UI-defined config for an enrollment protocol adapter, and deliberately still
+// the fleet's *intent* rather than a node's served state.
+//
+// ACME (RFC 8555) and EST (RFC 7030) are implemented and served by the nodes,
+// configured under pki.acme and pki.est. The Fleet Manager cannot read either
+// today: MachineConfig carries no acme or est field, so GetNodeConfig does not
+// return them (cryptos#205 covers why, and why adding them is not simply a
+// matter of widening the proto -- both blocks carry secrets). Until the
+// non-secret parts are exposed, this list cannot be reconciled with reality.
+//
+// SCEP and Windows autoenrollment (XCEP/WSTEP) genuinely are not implemented.
 export type AdapterKind = "acme" | "est" | "ms-autoenroll" | "scep";
 
 export interface EnrollmentAdapter {
