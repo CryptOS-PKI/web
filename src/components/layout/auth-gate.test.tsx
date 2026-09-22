@@ -28,6 +28,12 @@ let authState: AuthState;
 
 vi.mock("@/context/auth", () => ({ useAuth: () => authState }));
 
+// The copy action has its own tests, and it needs a router and the optional
+// auth hook; stubbing it keeps this test on the gate's own behaviour.
+vi.mock("@/components/layout/diagnostics-copy", () => ({
+  DiagnosticsCopy: () => null,
+}));
+
 const renderGate = () =>
   render(
     <AuthGate>
