@@ -49,7 +49,11 @@ describe("DiagnosticsCopy", () => {
   // landing page and the denial screens, which is where the reports worth
   // having come from (#83).
   it("copies a report without a session", async () => {
-    const writeText = vi.fn(async () => {});
+    // Typed like the real clipboard method. An untyped `vi.fn(async () => {})`
+    // gives mock.calls the element type `[]`, which makes the read of
+    // calls[0][0] further down a type error -- one that only `tsc -b` reports,
+    // so it fails the production build and not `vitest run`.
+    const writeText = vi.fn<(text: string) => Promise<void>>(async () => {});
     vi.stubGlobal("navigator", { clipboard: { writeText }, userAgent: "probe/1.0" });
 
     renderAt("/fleet?role=root");
@@ -58,7 +62,7 @@ describe("DiagnosticsCopy", () => {
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /^copied$/i })).toBeInTheDocument();
     });
-    const copied = writeText.mock.calls[0]?.[0] as string;
+    const copied = writeText.mock.calls[0]?.[0] ?? "";
     expect(copied).toContain("v1.2.3");
     expect(copied).toContain("/fleet?role=root");
     expect(copied).toContain("probe/1.0");
