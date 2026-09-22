@@ -1,0 +1,72 @@
+name: Web CI (lint, test, build)
+
+# Lint, test and build the SPA on a GitHub-hosted Linux runner.
+#
+# This job exists because nothing was running any of these three commands.
+# The checks on this repo were licenses, PR hygiene, gitleaks and actionlint,
+# so a pull request could be green with a main that did not compile -- which
+# is exactly what happened in #98 and was only found when the 1670 FleetOS
+# host could not be rebuilt (#99).
+#
+# All three are run, not just one of them, because each catches what the
+# others miss: `vitest run` does not typecheck, and `tsc -b` runs only inside
+# `npm run build`, so a type error in a test file passes the test suite and
+# fails the production build.
+
+# Skip when a change touches only Markdown or issue templates. A mixed change
+# still runs, since paths-ignore only skips when every changed file matches.
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - ".github/ISSUE_TEMPLATE/**"
+  pull_request:
+    paths-ignore:
+      - "**.md"
+      - ".github/ISSUE_TEMPLATE/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web-validation:
+    name: Web validation (lint, test, build)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          # 22 LTS. The repo declares no `engines` range, so this pin is the
+          # only statement of what version the project is expected to build
+          # on; if that ever needs to change, change it here on purpose.
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        # `npm ci` rather than `npm install`: it installs exactly the lockfile
+        # and fails if package.json and the lockfile disagree, so CI cannot
+        # quietly pass against a dependency tree no one else has.
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm run test
+
+      - name: Build
+        # tsc -b then vite build. This is the step that #99 was about.
+        run: npm run build
+
+      - name: Check tree is clean
+        # A formatter or a generated file that rewrites something in place
+        # would otherwise pass here and surprise the next person.
+        run: git diff --exit-code
