@@ -21,6 +21,7 @@ import type { ReactNode } from "react";
 import type { DenialReason } from "@/context/auth";
 
 import { CertificateHelp } from "@/components/layout/certificate-help";
+import { DiagnosticsCopy } from "@/components/layout/diagnostics-copy";
 import { Wordmark } from "@/components/layout/wordmark";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/auth";
@@ -58,6 +59,10 @@ const Shell = ({ children }: { children: ReactNode }) => (
   <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-background px-6">
     <Wordmark className="text-2xl" />
     {children}
+    {/* Reachable before sign-in on purpose: an operator who cannot get in is
+        the one whose report is worth most, and they have no other surface
+        (#83). */}
+    <DiagnosticsCopy className="flex flex-col items-center" />
   </div>
 );
 
