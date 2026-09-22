@@ -18,6 +18,7 @@ limitations under the License.
 
 import { Link } from "react-router-dom";
 
+import { DiagnosticsCopy } from "@/components/layout/diagnostics-copy";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Wordmark } from "@/components/layout/wordmark";
 import { useAuth } from "@/context/auth";
@@ -39,6 +40,9 @@ export const Header = () => {
             {operator.commonName}
           </span>
         ) : null}
+        {/* In the shell too, so a report can be produced from whatever page the
+            problem is actually on (#83). */}
+        <DiagnosticsCopy />
         <ThemeToggle />
       </div>
     </header>
