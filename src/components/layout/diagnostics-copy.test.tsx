@@ -50,9 +50,9 @@ describe("DiagnosticsCopy", () => {
   // having come from (#83).
   it("copies a report without a session", async () => {
     // Typed like the real clipboard method. An untyped `vi.fn(async () => {})`
-    // gives mock.calls the element type `[]`, so reading calls[0][0] below is a
-    // type error -- one that only `tsc -b` reports, which is the production
-    // build and not `vitest run`.
+    // gives mock.calls the element type `[]`, which makes the read of
+    // calls[0][0] further down a type error -- one that only `tsc -b` reports,
+    // so it fails the production build and not `vitest run`.
     const writeText = vi.fn<(text: string) => Promise<void>>(async () => {});
     vi.stubGlobal("navigator", { clipboard: { writeText }, userAgent: "probe/1.0" });
 
