@@ -89,7 +89,7 @@ describe("OperatorsPage empty state", () => {
     const { listOperatorCredentials } = await import("@/lib/operators");
     vi.mocked(listOperatorCredentials).mockResolvedValueOnce([]);
     useAuth.mockReturnValue({
-      operator: { commonName: "operator@example.org", level: "admin", serial: "3D:DB" },
+      operator: { commonName: "operator@example.org", level: "admin", serial: "0A:BC" },
     });
 
     render(<OperatorsPage />);
