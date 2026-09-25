@@ -25,6 +25,9 @@ limitations under the License.
 // certificate during the TLS handshake, so this page cannot trigger the prompt
 // -- hence the reload step, which is the part people otherwise miss.
 
+const FIRST_CREDENTIAL_GUIDE =
+  "https://github.com/CryptOS-PKI/manager/blob/main/docs/deploying-standalone.md#3-the-operator-ca-does-not-have-to-be-a-cryptos-node";
+
 interface Platform {
   /** Shell command that performs the import, where one exists. */
   command?: string;
@@ -92,5 +95,25 @@ export const CertificateHelp = () => (
         {p.note ? <p className="italic">{p.note}</p> : null}
       </div>
     ))}
+
+    {/* On a fleet nobody has logged in to yet there is no one to issue the
+        certificate but the reader, and this page cannot mint it (#70). */}
+    <div className="flex flex-col gap-1">
+      <h3 className="text-primary">Standing up a new fleet?</h3>
+      <p>
+        No operator certificate exists until the first one is issued. Issue it yourself from the
+        operator CA this manager trusts (<code>operatorCAPath</code> in its config), with the admin
+        level extension, then install it as above. The{" "}
+        <a
+          className="text-primary underline underline-offset-2"
+          href={FIRST_CREDENTIAL_GUIDE}
+          rel="noreferrer"
+          target="_blank"
+        >
+          deployment guide
+        </a>
+        , section 3, has the full OpenSSL recipe.
+      </p>
+    </div>
   </div>
 );
