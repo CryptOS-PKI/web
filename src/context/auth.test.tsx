@@ -103,16 +103,47 @@ describe("AuthProvider", () => {
     await waitFor(() => expect(state()).toBe("denied:none:not-authorized"));
   });
 
-  // 401 from the manager means the TLS handshake carried no client certificate:
-  // the operator has none installed, which is a different message from holding
-  // one the fleet will not accept.
-  it("reports a missing certificate when the API answers unauthenticated", async () => {
+  // 401 from the manager means the connection completed its handshake without a
+  // client certificate. That is usually a connection opened for the anonymous
+  // page and reused for the API (manager#77), which the manager now closes when
+  // it refuses the call, so one retry gets a fresh handshake where the browser
+  // can offer the certificate it holds.
+  it("retries once after a 401 and signs in on the fresh connection", async () => {
+    whoAmI.mockRejectedValueOnce(new ConnectError("no cert", Code.Unauthenticated));
+    whoAmI.mockResolvedValueOnce({
+      operator: { cn: "op@acme.example", level: "admin", serial: "0A:BC" },
+    });
+    renderProbe();
+
+    screen.getByRole("button", { name: /sign in/i }).click();
+
+    await waitFor(() => expect(state()).toBe("authenticated:admin:none"));
+    expect(whoAmI).toHaveBeenCalledTimes(2);
+  });
+
+  // Refused again on a fresh handshake: the browser completed a connection and
+  // chose not to send a certificate. That is not the same failure as an
+  // aborted handshake (Unknown), and it gets its own advice.
+  it("reports a certificate that was not sent when the retry is refused too", async () => {
     whoAmI.mockRejectedValue(new ConnectError("no cert", Code.Unauthenticated));
     renderProbe();
 
     screen.getByRole("button", { name: /sign in/i }).click();
 
-    await waitFor(() => expect(state()).toBe("denied:none:no-certificate"));
+    await waitFor(() => expect(state()).toBe("denied:none:certificate-not-sent"));
+    expect(whoAmI).toHaveBeenCalledTimes(2);
+  });
+
+  // Only a 401 is worth a second handshake; a presented certificate the fleet
+  // refuses will be refused again.
+  it("does not retry a permission denial", async () => {
+    whoAmI.mockRejectedValue(new ConnectError("no level", Code.PermissionDenied));
+    renderProbe();
+
+    screen.getByRole("button", { name: /sign in/i }).click();
+
+    await waitFor(() => expect(state()).toBe("denied:none:not-authorized"));
+    expect(whoAmI).toHaveBeenCalledTimes(1);
   });
 
   it("reports an unauthorized certificate when the API answers permission denied", async () => {
@@ -175,6 +206,7 @@ describe("AuthProvider", () => {
 
   it("can be retried after a denial", async () => {
     whoAmI.mockRejectedValueOnce(new ConnectError("no cert", Code.Unauthenticated));
+    whoAmI.mockRejectedValueOnce(new ConnectError("no cert", Code.Unauthenticated));
     whoAmI.mockResolvedValueOnce({
       operator: { cn: "op@acme.example", level: "operator", serial: "0A:BC" },
     });
@@ -182,7 +214,7 @@ describe("AuthProvider", () => {
     const button = screen.getByRole("button", { name: /sign in/i });
 
     button.click();
-    await waitFor(() => expect(state()).toBe("denied:none:no-certificate"));
+    await waitFor(() => expect(state()).toBe("denied:none:certificate-not-sent"));
 
     button.click();
     await waitFor(() => expect(state()).toBe("authenticated:operator:none"));

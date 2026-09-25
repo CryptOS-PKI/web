@@ -38,6 +38,11 @@ import { useAuth } from "@/context/auth";
 // an operator to install a certificate when the manager is simply unreachable
 // wastes their time.
 const denial: Record<DenialReason, { detail: string; title: string }> = {
+  "certificate-not-sent": {
+    detail:
+      "Your browser connected without sending a certificate. If one is installed, the browser has remembered not to send it to this site: fully quit and restart the browser, then log in again. Otherwise, install one.",
+    title: "Certificate not sent",
+  },
   "no-certificate": {
     detail:
       "Your browser did not present one, so there is nothing to log in with. The service is running -- this is a certificate you need to install, not an outage.",
@@ -93,9 +98,11 @@ export const AuthGate = ({ children }: { children: ReactNode }) => {
           <span className="text-primary">{title}</span>
           <span>{detail}</span>
         </div>
-        {/* Only the missing-certificate case is something the operator can act
-            on here, so it is the only one that carries instructions. */}
-        {reason === "no-certificate" ? <CertificateHelp /> : null}
+        {/* Only the missing-certificate cases are something the operator can
+            act on here, so they are the only ones that carry instructions. */}
+        {reason === "no-certificate" || reason === "certificate-not-sent" ? (
+          <CertificateHelp />
+        ) : null}
         <Button onClick={login} type="button" variant="outline">
           Try again
         </Button>
