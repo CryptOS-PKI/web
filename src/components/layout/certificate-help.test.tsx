@@ -54,4 +54,20 @@ describe("CertificateHelp", () => {
 
     expect(screen.getByText(/reload/i)).toBeInTheDocument();
   });
+
+  // On a fleet nobody has logged in to yet, "your fleet operator issues the
+  // certificate" names someone who does not exist: the person reading this is
+  // the operator, and no certificate has been issued (#70). Until the manager
+  // can mint the first one itself, say where it comes from instead of leaving
+  // them at a dead end.
+  it("tells someone standing up a new fleet where the first certificate comes from", () => {
+    render(<CertificateHelp />);
+
+    expect(screen.getByRole("heading", { name: /new fleet/i })).toBeInTheDocument();
+    expect(screen.getByText(/operatorCAPath/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /deployment guide/i })).toHaveAttribute(
+      "href",
+      expect.stringMatching(/manager\/blob\/main\/docs\/deploying-standalone\.md#3-/),
+    );
+  });
 });
