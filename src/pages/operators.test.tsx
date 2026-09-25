@@ -89,7 +89,7 @@ describe("OperatorsPage empty state", () => {
     const { listOperatorCredentials } = await import("@/lib/operators");
     vi.mocked(listOperatorCredentials).mockResolvedValueOnce([]);
     useAuth.mockReturnValue({
-      operator: { commonName: "shane@interborough.org", level: "admin", serial: "3D:DB" },
+      operator: { commonName: "operator@example.org", level: "admin", serial: "0A:BC" },
     });
 
     render(<OperatorsPage />);
@@ -101,7 +101,7 @@ describe("OperatorsPage empty state", () => {
     // listed, which is different from there being none.
     expect(screen.getByText(/minted outside it/i)).toBeInTheDocument();
     // And the reader is an operator, so saying otherwise is plainly wrong.
-    expect(screen.getByText(/shane@interborough.org/)).toBeInTheDocument();
+    expect(screen.getByText(/operator@example.org/)).toBeInTheDocument();
     expect(screen.getByText(/operator_ca_node/)).toBeInTheDocument();
   });
 });

@@ -53,16 +53,16 @@ describe("buildReport", () => {
     const report = buildReport({
       build,
       fleetMode: "live-auth",
-      operator: { commonName: "shane@interborough.org", level: "admin", serial: "3D:DB" },
+      operator: { commonName: "operator@example.org", level: "admin", serial: "0A:BC" },
       reason: "not-authorized",
       route: "/",
       status: "denied",
       userAgent: "probe",
     });
 
-    expect(report).toContain("shane@interborough.org");
+    expect(report).toContain("operator@example.org");
     expect(report).toContain("admin");
-    expect(report).toContain("3D:DB");
+    expect(report).toContain("0A:BC");
     expect(report).toContain("denied (not-authorized)");
   });
 
