@@ -54,6 +54,11 @@ export type AuthStatus = "anonymous" | "authenticated" | "denied" | "presenting"
  * different, so they are kept apart rather than collapsed into one failure.
  */
 export type DenialReason =
+  /**
+   * A fresh handshake completed without a client certificate: the browser has
+   * none to offer, or has remembered not to offer it to this site.
+   */
+  | "certificate-not-sent"
   /** The handshake carried no client certificate: none is installed. */
   | "no-certificate"
   /** A certificate was presented but the fleet will not accept it. */
@@ -103,6 +108,11 @@ const webSurfaceReachable = async (): Promise<boolean> => {
 // when it presented one that is not an authorized operator, which Connect
 // surfaces as these codes.
 //
+// A 401 reaches here only after whoAmIOnFreshConnection has already retried on
+// a new connection, so it means a completed handshake in which the browser chose
+// not to send a certificate. That is a different fix from an aborted handshake
+// (Unknown), so it is reported separately (manager#77).
+//
 // Code.Unknown is the awkward one and the common one (#81). A browser holding no
 // usable certificate -- or an operator who cancels the certificate prompt --
 // aborts the connection with ERR_BAD_SSL_CLIENT_AUTH_CERT, fetch rejects with a
@@ -116,7 +126,7 @@ const toReason = async (err: unknown): Promise<DenialReason> => {
       return "not-authorized";
     }
     case Code.Unauthenticated: {
-      return "no-certificate";
+      return "certificate-not-sent";
     }
     case Code.Unknown: {
       return (await webSurfaceReachable()) ? "no-certificate" : "unavailable";
@@ -124,6 +134,23 @@ const toReason = async (err: unknown): Promise<DenialReason> => {
     default: {
       return "unavailable";
     }
+  }
+};
+
+// whoAmIOnFreshConnection retries WhoAmI once after a 401. The page load opens a
+// connection without needing a certificate, and HTTP/2 reuses it for the API,
+// which then refuses it (manager#77). The manager closes a connection it
+// refuses for that reason, so the retry performs a new handshake where the
+// browser can offer the certificate it holds. Any other failure is final.
+const whoAmIOnFreshConnection = async () => {
+  try {
+    return await fleetClient().whoAmI({});
+  } catch (error: unknown) {
+    if (ConnectError.from(error).code !== Code.Unauthenticated) {
+      throw error;
+    }
+
+    return fleetClient().whoAmI({});
   }
 };
 
@@ -143,8 +170,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
-    void fleetClient()
-      .whoAmI({})
+    void whoAmIOnFreshConnection()
       .then((resp) => {
         const op = resp.operator;
         if (!op) {

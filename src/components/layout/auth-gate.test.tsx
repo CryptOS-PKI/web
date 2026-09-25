@@ -89,6 +89,7 @@ describe("AuthGate", () => {
   // manager is simply unreachable wastes their time.
   it.each([
     ["no-certificate" as const, /^No operator certificate$/],
+    ["certificate-not-sent" as const, /^Certificate not sent$/],
     ["not-authorized" as const, /certificate not authori[sz]ed/i],
     ["unavailable" as const, /could not be reached/i],
   ])("explains the %s denial", (reason, expected) => {
@@ -107,6 +108,17 @@ describe("AuthGate", () => {
 
     expect(screen.getByRole("heading", { name: /windows/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /firefox/i })).toBeInTheDocument();
+  });
+
+  // A browser that connected without sending a certificate may have none, or may
+  // have remembered not to send it; the page says how to clear that and still
+  // carries the install instructions for the first case (manager#77).
+  it("explains how to clear a remembered refusal when no certificate was sent", () => {
+    authState = { login, operator: null, reason: "certificate-not-sent", status: "denied" };
+    renderGate();
+
+    expect(screen.getByText(/restart the browser/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /windows/i })).toBeInTheDocument();
   });
 
   it("does not offer install instructions for an outage", () => {
