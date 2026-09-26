@@ -1,6 +1,6 @@
-# 🎨 web
+# web 🎨
 
-The web frontend for the [CryptOS-PKI](https://github.com/CryptOS-PKI) Fleet Manager. React + TypeScript, built with Vite to a static bundle that [`manager`](https://github.com/CryptOS-PKI/manager) embeds and serves on its own TLS listener.
+> 🖥️ The web frontend for the [CryptOS-PKI](https://github.com/CryptOS-PKI) Fleet Manager. React + TypeScript, built with Vite to a static bundle that [`manager`](https://github.com/CryptOS-PKI/manager) embeds and serves on its own TLS listener.
 
 ## ✨ What it is
 
@@ -10,11 +10,11 @@ Conceptually `manager/` and `web/` are one application split across two repos. T
 
 ## 🧱 Stack
 
-- ⚛️ React + TypeScript
-- ⚡ Vite (bundler)
-- 🔌 Talks to `manager/` via Connect-Web (gRPC-over-HTTP/2), using TS stubs generated from [`api/`](https://github.com/CryptOS-PKI/api)
-- 🔐 Browser-side mTLS for operator authentication (smart-card or YubiKey-backed client cert in the OS cert store; no passwords)
-- 🛡️ Strict CSP, no third-party JS, no CDN fetches at runtime — the bundle is fully self-contained so the project stays air-gap-friendly
+- ⚛️ **React + TypeScript**
+- ⚡ **Vite** (bundler)
+- 🔌 **Talks to `manager/` via Connect-Web** (gRPC-over-HTTP/2), using TS stubs generated from [`api/`](https://github.com/CryptOS-PKI/api)
+- 🔐 **Browser-side mTLS** for operator authentication (smart-card or YubiKey-backed client cert in the OS cert store; no passwords)
+- 🛡️ **Strict CSP**, no third-party JS, no CDN fetches at runtime — the bundle is fully self-contained so the project stays air-gap-friendly
 
 ## 🎯 Role-aware UI
 
